@@ -1,17 +1,19 @@
-# Color.separator Alpha (2026)
-
-[![CI](https://github.com/ReidSurmeier/color-separator-alpha/actions/workflows/ci.yml/badge.svg)](https://github.com/ReidSurmeier/color-separator-alpha/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/ReidSurmeier/color-separator-alpha/graph/badge.svg)](https://codecov.io/gh/ReidSurmeier/color-separator-alpha)
-[![License: PolyForm Noncommercial](https://img.shields.io/badge/License-PolyForm%20NC%201.0-blue.svg)](LICENSE)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Next.js 16](https://img.shields.io/badge/Next.js-16-black.svg)](https://nextjs.org/)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.6-ee4c2c.svg)](https://pytorch.org/)
+<h1 align="center">Color.separator Alpha (2026)</h1>
 
 <p align="center">
-  <strong>AI-powered color separation for CNC woodblock printing.</strong>
+  <a href="https://github.com/ReidSurmeier/color-separator-alpha/actions/workflows/ci.yml"><img src="https://github.com/ReidSurmeier/color-separator-alpha/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://codecov.io/gh/ReidSurmeier/color-separator-alpha"><img src="https://codecov.io/gh/ReidSurmeier/color-separator-alpha/graph/badge.svg" alt="codecov"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-PolyForm%20NC%201.0-blue.svg" alt="License: PolyForm Noncommercial"></a>
+  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.10+-blue.svg" alt="Python 3.10+"></a>
+  <a href="https://nextjs.org/"><img src="https://img.shields.io/badge/Next.js-16-black.svg" alt="Next.js 16"></a>
+  <a href="https://pytorch.org/"><img src="https://img.shields.io/badge/PyTorch-2.6-ee4c2c.svg" alt="PyTorch"></a>
 </p>
 
-Color.separator splits photographs into flat color plates for relief printing. Each plate is a binary mask — ink or paper — ready to cut on a CNC router and print as a woodblock, linocut, or screenprint layer. The tool uses SAM2.1 for object-aware segmentation, K-means++ for perceptual color clustering in CIELAB space, and potrace for Inkscape-quality cubic bezier SVG output.
+<p align="center">
+  <strong>AI-powered color separation for woodblock printing.</strong>
+</p>
+
+Color.separator splits photographs into flat color plates for relief printing. Each plate is a binary mask — ink or paper — for woodblock, linocut, or screenprint layers. The tool uses SAM2.1 for object-aware segmentation, K-means++ for perceptual color clustering in CIELAB space, and potrace for Inkscape-quality cubic bezier SVG output.
 
 * Live: https://color.reidsurmeier.wtf
 * Algorithm: SAM2.1 + K-means++ + Canny + RealESRGAN + potrace
@@ -43,7 +45,7 @@ Color Plates (SVG + PNG per plate)
 | AI object segmentation (SAM2) | **Yes** | No | No | Partial |
 | Perceptual color clustering (CIELAB) | **Yes** | Manual | No | No |
 | AI super-resolution (RealESRGAN) | **2x / 4x** | Enhance only | No | No |
-| CNC-ready SVG output (potrace) | **Yes** | Manual trace | Yes | No |
+| Vector SVG output (potrace) | **Yes** | Manual trace | Yes | No |
 | Automatic plate merging (CIEDE2000) | **Yes** | No | No | No |
 | Up to 60 color plates | **Yes** | Manual | N/A | N/A |
 | Full resolution output (no downscale) | **Always** | Yes | Limited | N/A |
