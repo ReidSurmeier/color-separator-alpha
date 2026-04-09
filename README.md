@@ -165,6 +165,53 @@ Internet → Cloudflare CDN → cloudflared tunnel (Linux)
         → RTX 4070 SUPER (12GB VRAM, CUDA 12.6)
 ```
 
+## Papers & References
+
+Color.separator builds on these research papers and open-source projects:
+
+### Segmentation
+| Paper | Authors | Year | Use |
+|-------|---------|------|-----|
+| [SAM 2: Segment Anything in Images and Videos](https://arxiv.org/abs/2408.00714) | Ravi et al. (Meta AI) | 2024 | Object-aware mask generation for color boundary detection |
+| [Segment Anything](https://arxiv.org/abs/2304.02643) | Kirillov et al. (Meta AI) | 2023 | Foundation model for the SAM2 architecture |
+
+### Super-Resolution
+| Paper | Authors | Year | Use |
+|-------|---------|------|-----|
+| [Real-ESRGAN: Training Real-World Blind Super-Resolution with Pure Synthetic Data](https://arxiv.org/abs/2107.10833) | Wang et al. | 2021 | 2x/4x upscaling before separation for higher resolution output |
+| [ESRGAN: Enhanced Super-Resolution Generative Adversarial Networks](https://arxiv.org/abs/1809.00219) | Wang et al. | 2018 | Foundation architecture for Real-ESRGAN |
+| [BasicSR: Open Source Image and Video Restoration Toolbox](https://github.com/XPixelGroup/BasicSR) | XPixelGroup | 2022 | PyTorch framework for ESRGAN inference |
+
+### Vectorization
+| Paper | Authors | Year | Use |
+|-------|---------|------|-----|
+| [Potrace: Transforming bitmaps into vector graphics](https://potrace.sourceforge.net/potrace.pdf) | Selinger | 2003 | Cubic bezier tracing of binary plate masks — same engine as Inkscape's Trace Bitmap |
+
+### Color Science
+| Paper | Authors | Year | Use |
+|-------|---------|------|-----|
+| [The CIEDE2000 Color-Difference Formula](https://doi.org/10.1002/col.20070) | Sharma, Wu, Dalal | 2005 | Perceptual color distance for merge suggestions |
+| [CIELAB Color Space](https://en.wikipedia.org/wiki/CIELAB_color_space) | CIE | 1976 | Perceptual color clustering via K-means in L\*a\*b\* |
+| [Using K-Means for Color Quantization](https://scikit-learn.org/stable/auto_examples/cluster/plot_color_quantization.html) | scikit-learn | — | MiniBatchKMeans for fast color plate assignment |
+
+### Edge Detection & Filtering
+| Paper | Authors | Year | Use |
+|-------|---------|------|-----|
+| [A Computational Approach to Edge Detection](https://doi.org/10.1109/TPAMI.1986.4767851) | Canny | 1986 | Edge-aware plate boundary refinement |
+| [Guided Image Filtering](https://doi.org/10.1109/TPAMI.2012.213) | He, Sun, Tang | 2013 | Edge-preserving smoothing on neutral plates |
+
+### Libraries & Frameworks
+| Project | Use |
+|---------|-----|
+| [PyTorch](https://pytorch.org/) | GPU inference for SAM2 and RealESRGAN |
+| [Ultralytics](https://github.com/ultralytics/ultralytics) | SAM2.1 model loading and inference |
+| [FastAPI](https://fastapi.tiangolo.com/) | Async Python backend with SSE streaming |
+| [Next.js](https://nextjs.org/) | React frontend with standalone deployment |
+| [potrace (pypotrace)](https://github.com/flupke/pypotrace) | Python bindings for the potrace library |
+| [scikit-image](https://scikit-image.org/) | Contour finding, morphological operations |
+| [OpenCV](https://opencv.org/) | Image resizing, color space conversion |
+| [JSZip](https://stuk.github.io/jszip/) | Client-side ZIP generation for plate downloads |
+
 ## License
 
 Copyright (c) 2026, Reid Surmeier. All rights reserved.<br>
