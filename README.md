@@ -18,42 +18,38 @@ Color.separator splits photographs into flat color plates for relief printing. E
 * Live: https://color.reidsurmeier.wtf
 * Algorithm: SAM2.1 + K-means++ + Canny + RealESRGAN + potrace
 
-## How It Works
+## Pipeline
 
 ```
-Input Image
-    │
-    ▼
-┌─────────────────────────────────────────┐
-│  1. Optional ESRGAN upscale (2x / 4x)  │
-│  2. SAM2.1 object segmentation          │
-│  3. K-means++ in CIELAB color space     │
-│  4. Guided filter + edge detection      │
-│  5. Connected component cleanup         │
-│  6. Diff-based hole fill                │
-│  7. Potrace vectorization               │
-└─────────────────────────────────────────┘
-    │
-    ▼
-Color Plates (SVG + PNG per plate)
+photograph ──► ESRGAN 2x/4x ──► SAM2.1 masks ──► K-means++ (CIELAB)
+                                                        │
+            potrace SVG ◄── cleanup ◄── guided filter ◄─┘
+                │
+                ▼
+        per-plate SVG + PNG + manifest
 ```
+
+**ESRGAN** optional super-resolution before processing. **SAM2.1** generates object-aware region masks. **K-means++** clusters pixels in perceptual CIELAB space, respecting SAM boundaries. **Guided filter** preserves edges on neutral plates. **Potrace** converts binary masks to cubic bezier SVG paths (same engine as Inkscape).
 
 ## Feature Comparison
 
-| Feature | Color.separator | Adobe Photoshop | Vectorizer.ai | remove.bg |
-|---------|:-:|:-:|:-:|:-:|
-| AI object segmentation (SAM2) | **Yes** | No | No | Partial |
-| Perceptual color clustering (CIELAB) | **Yes** | Manual | No | No |
-| AI super-resolution (RealESRGAN) | **2x / 4x** | Enhance only | No | No |
-| Vector SVG output (potrace) | **Yes** | Manual trace | Yes | No |
-| Automatic plate merging (CIEDE2000) | **Yes** | No | No | No |
-| Up to 60 color plates | **Yes** | Manual | N/A | N/A |
-| Full resolution output (no downscale) | **Always** | Yes | Limited | N/A |
-| Real-time SSE preview | **Yes** | No | No | No |
-| Self-hosted / privacy | **Yes** | Cloud | Cloud | Cloud |
-| Open source | **Yes** | No | No | No |
-| GPU accelerated | **RTX 4070+** | CPU | Cloud GPU | Cloud GPU |
-| Structured analytics | **Yes** | No | No | No |
+|  | Color.separator | UltraSeps | Separation Studio | T-Seps | Photoshop | CorelDRAW | Illustrator | Vectorizer.ai |
+|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| AI segmentation (SAM2) | **Yes** | — | — | — | — | — | — | — |
+| CIELAB perceptual clustering | **Yes** | — | — | — | Manual | — | — | — |
+| AI upscale (RealESRGAN) | **2x/4x** | — | — | — | 2x | 2x | — | — |
+| Vector SVG output | **Yes** | — | — | — | — | **Yes** | **Yes** | **Yes** |
+| Auto merge suggestions (CIEDE2000) | **Yes** | — | — | — | — | Partial | — | Partial |
+| Plates / channels | **2-60** | 6-8 | 8-12 | 6-8 | 56 | Spot | 128 | N/A |
+| Full resolution output | **Always** | Yes | Yes | Yes | Yes | Yes | Yes | Limited |
+| Real-time preview | **SSE stream** | After run | Yes | After run | Yes | Yes | Yes | Yes |
+| Spot color ink libraries | — | — | **Yes** | — | **Yes** | **Yes** | — | — |
+| Simulated process seps | — | **Yes** | **Yes** | **Yes** | Manual | — | — | — |
+| Index color separation | — | **Yes** | **Yes** | **Yes** | Manual | — | — | — |
+| Self-hosted / local | **Yes** | Desktop | Desktop | Desktop | Desktop | Desktop | Desktop | Cloud |
+| Open source | **Yes** | — | — | — | — | — | — | — |
+| GPU accelerated | **RTX 4070+** | CPU | CPU | CPU | CPU | CPU | CPU | Cloud |
+| Price | **Free** | $349 | $499 | $249 | $23/mo | $550 | $23/mo | $10/mo |
 
 ## Output
 
