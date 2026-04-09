@@ -1,0 +1,119 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run lint -- --max-warnings 3
+      - name: Check formatting
+        run: npx prettier --check "src/**/*.{ts,tsx,js,jsx,css}" --ignore-path .gitignore
+      - name: Type check
+        run: npx tsc --noEmit
+      - run: npm run build
+      - name: Check bundle size
+        run: |
+          du -sh .next/ | tee bundle-size.txt
+          echo "Bundle size logged"
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build frontend Docker image
+        run: docker build -f Dockerfile.frontend -t color-separator-frontend:ci .
+
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r backend/requirements.txt
+      - run: pip install pytest pytest-cov flake8
+      - run: cd backend && pytest tests/ -v --cov=. --cov-report=xml:coverage.xml --cov-config=.coveragerc
+      - run: flake8 backend/main.py --max-line-length=120 --ignore=E501,W503,E402,E722,F401,F403,F405,E302,E303,E305,E401,F841 --count
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: backend/coverage.xml
+          fail_ci_if_error: false
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - name: npm audit
+        run: npm audit --audit-level=high || true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install pip-audit
+      - name: pip audit
+        run: pip-audit -r backend/requirements.txt || true
+      - name: License check (npm)
+        run: npx license-checker --production --onlyAllow 'MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;0BSD;CC0-1.0;CC-BY-3.0;CC-BY-4.0;Unlicense;Python-2.0;BlueOak-1.0.0' || true
+      - name: Trivy FS Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '0'
+
+  health-check:
+    runs-on: ubuntu-latest
+    needs: [frontend, backend, security]
+    if: github.ref == 'refs/heads/master'
+    continue-on-error: true
+    steps:
+      - name: Check live site health
+        run: |
+          sleep 10
+          curl -sf --max-time 10 https://color.reidsurmeier.wtf/ && echo "Frontend: OK" || echo "Frontend: unreachable"
+          curl -sf --max-time 10 https://color.reidsurmeier.wtf/api/health && echo "API: OK" || echo "API: unreachable"
+
+  e2e:
+    needs: frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install Pillow numpy
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - run: npx playwright test
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/

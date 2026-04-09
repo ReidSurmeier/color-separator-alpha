@@ -1,0 +1,56 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.local
+    container_name: colorsep-backend
+    ports:
+      - "127.0.0.1:8001:8001"
+    environment:
+      - GPU_MODE=1
+      - SAM_WEIGHTS=/app/sam2.1_t.pt
+      - UPSCALE_SCALE=2
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+        limits:
+          memory: 16G
+          cpus: '4'
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: colorsep-frontend
+    ports:
+      - "127.0.0.1:8004:8004"
+    environment:
+      - BACKEND_URL=http://backend:8001
+      - PORT=8004
+      - HOSTNAME=0.0.0.0
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '2'
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8004/').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s

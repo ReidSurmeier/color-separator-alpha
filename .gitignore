@@ -1,0 +1,99 @@
+# Dependencies
+node_modules/
+
+# Model weights
+backend/weights/
+.pnp
+.pnp.js
+
+# Build
+.next/
+out/
+build/
+dist/
+
+# Environment
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Vercel
+.vercel
+
+# Local settings (not project config)
+.claude/settings.local.json
+
+# User-specific skills (not part of the template)
+.claude/skills/customize/
+.claude/skills/release/
+
+# Pipeline artifacts
+CLAUDE.md
+ARCHITECTURE-RECOMMENDATIONS.md
+MULTI-AGENT-RESEARCH.md
+OPTIMIZATION-REPORT.md
+ORCHESTRATION-PIPELINE.md
+ORCHESTRATION-PIPELINE-V2.md
+PIPELINE-REVISED.md
+PIPELINE-STATE.md
+PIPELINE-TASK.md
+SPRINT-REPORT.md
+QA-REPORT.md
+CONTRACTS.md
+
+# Sentry
+sentry.*.config.ts
+
+# SonarQube
+sonar-project.properties
+
+# Research/docs artifacts
+docs/
+test-results/
+
+# Pipeline briefs
+PIPELINE-BRIEF-*.md
+QA-CHECKLIST.md
+
+# Misc scripts
+switch-backend.sh
+
+# Aider
+.aider*
+
+# Data artifacts
+data/
+
+# Local temp files
+temp/
+backend/venv/
+__pycache__/
+backend/uploads/
+venv/
+backend/sam2.1_t.pt
+backend/*.pt
+__pycache__/
+*.pyc
+.coverage
+.gitnexus

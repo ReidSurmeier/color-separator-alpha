@@ -1,0 +1,51 @@
+FROM pytorch/pytorch:2.6.0-cuda12.6-cudnn9-runtime
+
+# System deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgl1-mesa-glx libglib2.0-0 wget curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install Python deps
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip install --no-cache-dir slowapi ultralytics realesrgan basicsr \
+    && pip install --no-cache-dir opencv-contrib-python-headless
+
+# Fix torchvision compatibility: basicsr/realesrgan needs functional_tensor
+# which was removed in torchvision 0.21+. Create a shim module.
+RUN python3 -c "\
+import os, torchvision; \
+shim = os.path.join(os.path.dirname(torchvision.__file__), 'transforms', 'functional_tensor.py'); \
+open(shim, 'w').write('from torchvision.transforms.functional import rgb_to_grayscale\n'); \
+print('Created shim:', shim)"
+
+# Download SAM tiny weights (fits 12GB VRAM easily)
+RUN wget -q https://github.com/ultralytics/assets/releases/download/v8.3.0/sam2.1_t.pt -O /app/sam2.1_t.pt
+
+# Download RealESRGAN weights (2x and 4x)
+RUN mkdir -p /app/weights && \
+    wget -q https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.1/RealESRGAN_x2plus.pth \
+    -O /app/weights/RealESRGAN_x2plus.pth && \
+    wget -q https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth \
+    -O /app/weights/RealESRGAN_x4plus.pth
+
+# Create non-root user
+RUN useradd -m -u 1000 appuser
+
+# Copy backend code
+COPY --chown=appuser:appuser . .
+
+# GPU mode on, no auth needed (internal network only, accessed via Tailscale)
+ENV GPU_MODE=1
+ENV PYTHONUNBUFFERED=1
+ENV SAM_WEIGHTS=/app/sam2.1_t.pt
+
+# Run as non-root
+USER appuser
+
+EXPOSE 8001
+
+# Local server mode: uvicorn directly (not RunPod handler)
+CMD ["python3", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "1"]

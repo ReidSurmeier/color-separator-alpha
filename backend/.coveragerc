@@ -1,0 +1,20 @@
+[run]
+source = .
+omit =
+    tests/*
+    # SAM v20 requires GPU — not testable in CI
+    separate.py
+    deploy-runpod.sh
+
+[report]
+exclude_lines =
+    pragma: no cover
+    if __name__
+    # GPU-only paths
+    if CUDA_AVAILABLE
+    if GPU_MODE
+    # Import fallbacks
+    except ImportError
+    except.*ModuleNotFoundError
+    # Defensive/unreachable
+    raise NotImplementedError

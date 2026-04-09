@@ -1,0 +1,13 @@
+.git
+.github
+node_modules
+.next
+backend
+e2e
+tests
+*.md
+.env*
+.eslintrc*
+eslint.config.mjs
+playwright.config.ts
+playwright-report
