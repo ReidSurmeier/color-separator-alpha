@@ -26,6 +26,16 @@ function safeFilename(s: string): string {
   return s.replace(/[^a-zA-Z0-9_\-]/g, "_");
 }
 
+/** Escape a string for safe embedding in PostScript string literals (paren-delimited). */
+function safePsString(s: string): string {
+  return s.replace(/[\\()]/g, "\\$&");
+}
+
+/** Escape a string for safe embedding in SVG/XML text content. */
+function safeXml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
 /**
  * Extract path `d` attribute strings from raw SVG markup.
  * Uses the same regex approach as cnc-engine.ts parseSvg.
@@ -79,7 +89,7 @@ export function exportCleanedSvg(
   const stripY = height_mm - 3;
   const colorStrip = [
     `  <rect x="${stripX}" y="${stripY}" width="10" height="3" fill="${hex}" stroke="black" stroke-width="0.15"/>`,
-    `  <text x="${stripX + 5}" y="${stripY - 0.5}" font-family="monospace" font-size="1.5" text-anchor="middle" fill="black">${plate.name} ${hex}</text>`,
+    `  <text x="${stripX + 5}" y="${stripY - 0.5}" font-family="monospace" font-size="1.5" text-anchor="middle" fill="black">${safeXml(plate.name)} ${hex}</text>`,
   ].join("\n");
 
   return [
@@ -87,7 +97,7 @@ export function exportCleanedSvg(
     `<svg xmlns="http://www.w3.org/2000/svg"`,
     `     width="${width_mm}mm" height="${height_mm}mm"`,
     `     viewBox="0 0 ${width_mm} ${height_mm}">`,
-    `  <title>${plate.name}</title>`,
+    `  <title>${safeXml(plate.name)}</title>`,
     pathEls,
     kento ? `  ${kento}` : "",
     colorStrip,
@@ -327,7 +337,7 @@ export function exportEps(
     `%!PS-Adobe-3.0 EPSF-3.0`,
     `%%BoundingBox: 0 0 ${Math.ceil(widthPt)} ${Math.ceil(heightPt)}`,
     `%%HiResBoundingBox: 0.0 0.0 ${widthPt.toFixed(4)} ${heightPt.toFixed(4)}`,
-    `%%Title: ${plate.name}`,
+    `%%Title: ${safeFilename(plate.name)}`,
     `%%Creator: color-separator-alpha`,
     `%%EndComments`,
     `%%BeginProlog`,
@@ -362,7 +372,7 @@ export function exportEps(
   lines.push(`0 0 0 setrgbcolor`);
   lines.push(`/Courier 4 selectfont`);
   lines.push(`${(stripX).toFixed(4)} ${(stripY + stripH + 1 * MM_TO_PT).toFixed(4)} moveto`);
-  lines.push(`(${plate.name} ${colorToHex(plate.color)}) show`);
+  lines.push(`(${safePsString(plate.name)} ${colorToHex(plate.color)}) show`);
 
   lines.push(`%%EOF`);
 
@@ -537,7 +547,7 @@ export function layoutAllPlatesOnSheet(
     svgParts.push(
       `  <text x="${(offsetX + cellW / 2).toFixed(3)}" y="${(offsetY + 4).toFixed(3)}"`,
       `        font-family="monospace" font-size="4" text-anchor="middle" fill="#333">`,
-      `    ${plate.name} ${hex}`,
+      `    ${safeXml(plate.name)} ${hex}`,
       `  </text>`,
     );
 

@@ -1,4 +1,3 @@
-import { inflatePaths, JoinType, EndType } from "clipper2-ts";
 import type { CncPlate, KentoConfig, SupportIsland } from "./cnc-types";
 
 // ---------------------------------------------------------------------------
@@ -417,13 +416,16 @@ export function closeOpenPaths(paths: string[]): { closed: string[]; pathsClosed
  * For endmills: offset = -radius (paths shrink by half the tool diameter)
  * For V-bits: offset = -radius at the surface (tip compensation)
  */
-export function compensateToolPath(
+export async function compensateToolPath(
   paths: string[],
   toolRadiusMm: number,
-): { compensated: string[]; compensatedCount: number } {
+): Promise<{ compensated: string[]; compensatedCount: number }> {
   if (toolRadiusMm === 0 || paths.length === 0) {
     return { compensated: paths, compensatedCount: 0 };
   }
+
+  // Dynamic import to avoid bundling ~200KB clipper2-ts in initial page load
+  const { inflatePaths, JoinType, EndType } = await import("clipper2-ts");
 
   // Scale factor: work in integer space (clipper uses bigints)
   const SCALE = 1000;

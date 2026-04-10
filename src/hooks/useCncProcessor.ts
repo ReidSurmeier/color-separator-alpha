@@ -177,6 +177,13 @@ export function useCncProcessor() {
       const file = e.target.files?.[0];
       if (!file) return;
 
+      // ZIP bomb protection: reject files over 50MB
+      const MAX_FILE_SIZE = 50 * 1024 * 1024;
+      if (file.size > MAX_FILE_SIZE) {
+        setProcessingError(`File too large: ${Math.round(file.size / 1024 / 1024)}MB (max 50MB)`);
+        return;
+      }
+
       setFileName(file.name);
       setHasProcessed(false);
       setStats(null);
@@ -404,7 +411,8 @@ export function useCncProcessor() {
       let totalSupportIslands = 0;
       let totalCompensatedPaths = 0;
 
-      const processed = plates.map((plate) => {
+      const processed: typeof plates = [];
+      for (const plate of plates) {
         const { paths, width, height } = parseSvg(plate.svgRaw);
 
         const nodesBefore = countNodes(plate.svgRaw);
@@ -423,7 +431,7 @@ export function useCncProcessor() {
         totalPathsClosed += pathsClosed;
 
         // 4. Tool compensation (offset inward by tool radius)
-        const { compensated, compensatedCount } = compensateToolPath(closed, selectedTool.radius_mm);
+        const { compensated, compensatedCount } = await compensateToolPath(closed, selectedTool.radius_mm);
         totalCompensatedPaths += compensatedCount;
 
         // Rebuild SVG with cleaned paths
@@ -436,14 +444,14 @@ export function useCncProcessor() {
         const svgOpen = svgOpenMatch ? svgOpenMatch[0] : `<svg xmlns="http://www.w3.org/2000/svg">`;
         let rebuiltSvg = `${svgOpen}\n${pathElements}\n</svg>`;
 
-        // 4. Set physical dimensions
+        // 5. Set physical dimensions
         rebuiltSvg = setPhysicalDimensions(
           rebuiltSvg,
           printSize.width_mm,
           printSize.height_mm
         );
 
-        // 5. Insert kento marks
+        // 6. Insert kento marks
         if (kentoConfig.enabled) {
           const kentoMark = generateKentoMarks(
             printSize.width_mm,
@@ -454,7 +462,7 @@ export function useCncProcessor() {
           totalKentoMarks++;
         }
 
-        // 6. Detect support islands
+        // 7. Detect support islands
         const islands = detectUnsupportedAreas(
           compensated,
           printSize.width_mm,
@@ -465,7 +473,7 @@ export function useCncProcessor() {
         const nodesAfter = countNodes(rebuiltSvg);
         totalNodesAfter += nodesAfter;
 
-        return {
+        processed.push({
           ...plate,
           svgCleaned: rebuiltSvg,
           nodeCount: nodesAfter,
@@ -474,8 +482,8 @@ export function useCncProcessor() {
             height: printSize.height_mm,
           },
           supportIslands: islands,
-        };
-      });
+        });
+      }
 
       setPlates(processed);
       setHasProcessed(true);
@@ -575,7 +583,7 @@ export function useCncProcessor() {
     a.href = url;
     a.download = "cnc-plates.zip";
     a.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
     trackEvent("cnc_export_complete", {
       format: exportFormat,
       layout: exportLayout,

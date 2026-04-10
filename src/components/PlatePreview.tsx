@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import DOMPurify from "dompurify";
 import { generateKentoMarks, convertUnits } from "@/lib/cnc-engine";
 import type { CncPlate, KentoConfig, PrintSize } from "@/lib/cnc-types";
 
@@ -30,13 +31,18 @@ function formatDim(valueMm: number, unit: "mm" | "in"): string {
   return `${inches.toFixed(1)}in`;
 }
 
-/** Strip outer <svg> wrapper and return inner markup only */
+/** Strip outer <svg> wrapper, sanitize, and return inner markup only */
 function extractSvgInner(svg: string): string {
-  // Remove the <svg ...> opening tag and </svg> closing tag
-  return svg
+  const inner = svg
     .replace(/<svg[^>]*>/i, "")
     .replace(/<\/svg>/i, "")
     .trim();
+  return DOMPurify.sanitize(inner, {
+    USE_PROFILES: { svg: true, svgFilters: true },
+    ADD_TAGS: ["use"],
+    FORBID_TAGS: ["script", "foreignObject"],
+    FORBID_ATTR: ["onload", "onerror", "onclick", "onmouseover"],
+  });
 }
 
 /** Get viewBox string from an SVG string, or null */
