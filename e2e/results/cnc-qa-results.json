@@ -1,0 +1,167 @@
+[
+  {
+    "testName": "A4 1/8-end kento=true svg 3plates",
+    "paperSize": "A4",
+    "toolId": "1/8-end",
+    "kentoEnabled": true,
+    "exportFormat": "svg",
+    "plateCount": 3,
+    "processStats": "statsboundary rects removed3paths closed3kento added3nodes150→240",
+    "exportSizeKb": 17,
+    "pass": true
+  },
+  {
+    "testName": "A3 1/8-end kento=true svg 5plates",
+    "paperSize": "A3",
+    "toolId": "1/8-end",
+    "kentoEnabled": true,
+    "exportFormat": "svg",
+    "plateCount": 5,
+    "processStats": "statsboundary rects removed5paths closed5kento added5nodes310→460",
+    "exportSizeKb": 35,
+    "pass": true
+  },
+  {
+    "testName": "A5 1/8-end kento=true svg 2plates",
+    "paperSize": "A5",
+    "toolId": "1/8-end",
+    "kentoEnabled": true,
+    "exportFormat": "svg",
+    "plateCount": 2,
+    "processStats": "statsboundary rects removed2paths closed2kento added2nodes88→148",
+    "exportSizeKb": 11,
+    "pass": true
+  },
+  {
+    "testName": "A6 1/8-end kento=true svg 4plates",
+    "paperSize": "A6",
+    "toolId": "1/8-end",
+    "kentoEnabled": true,
+    "exportFormat": "svg",
+    "plateCount": 4,
+    "processStats": "statsboundary rects removed4paths closed4kento added4nodes224→344",
+    "exportSizeKb": 24,
+    "pass": true
+  },
+  {
+    "testName": "A4 1/4-end kento=true svg 3plates",
+    "paperSize": "A4",
+    "toolId": "1/4-end",
+    "kentoEnabled": true,
+    "exportFormat": "svg",
+    "plateCount": 3,
+    "processStats": "statsboundary rects removed3paths closed3kento added3nodes150→240",
+    "exportSizeKb": 17,
+    "pass": true
+  },
+  {
+    "testName": "A4 1/8-down kento=true svg 3plates",
+    "paperSize": "A4",
+    "toolId": "1/8-down",
+    "kentoEnabled": true,
+    "exportFormat": "svg",
+    "plateCount": 3,
+    "processStats": "statsboundary rects removed3paths closed3kento added3nodes150→240",
+    "exportSizeKb": 17,
+    "pass": true
+  },
+  {
+    "testName": "A4 1/4-down kento=true svg 3plates",
+    "paperSize": "A4",
+    "toolId": "1/4-down",
+    "kentoEnabled": true,
+    "exportFormat": "svg",
+    "plateCount": 3,
+    "processStats": "statsboundary rects removed3paths closed3kento added3nodes150→240",
+    "exportSizeKb": 17,
+    "pass": true
+  },
+  {
+    "testName": "A4 60v kento=true svg 3plates",
+    "paperSize": "A4",
+    "toolId": "60v",
+    "kentoEnabled": true,
+    "exportFormat": "svg",
+    "plateCount": 3,
+    "processStats": "statsboundary rects removed3paths closed3kento added3nodes150→240",
+    "exportSizeKb": 17,
+    "pass": true
+  },
+  {
+    "testName": "A4 30v kento=true svg 3plates",
+    "paperSize": "A4",
+    "toolId": "30v",
+    "kentoEnabled": true,
+    "exportFormat": "svg",
+    "plateCount": 3,
+    "processStats": "statsboundary rects removed3paths closed3kento added3nodes150→240",
+    "exportSizeKb": 17,
+    "pass": true
+  },
+  {
+    "testName": "A4 1/8-end kento=false svg 3plates",
+    "paperSize": "A4",
+    "toolId": "1/8-end",
+    "kentoEnabled": false,
+    "exportFormat": "svg",
+    "plateCount": 3,
+    "processStats": "statsboundary rects removed3paths closed3kento added0nodes150→138",
+    "exportSizeKb": 10,
+    "pass": true
+  },
+  {
+    "testName": "A4 1/8-end kento=true dxf 3plates",
+    "paperSize": "A4",
+    "toolId": "1/8-end",
+    "kentoEnabled": true,
+    "exportFormat": "dxf",
+    "plateCount": 3,
+    "processStats": "statsboundary rects removed3paths closed3kento added3nodes150→240",
+    "exportSizeKb": 14,
+    "pass": true
+  },
+  {
+    "testName": "A4 1/8-end kento=true eps 3plates",
+    "paperSize": "A4",
+    "toolId": "1/8-end",
+    "kentoEnabled": true,
+    "exportFormat": "eps",
+    "plateCount": 3,
+    "processStats": "statsboundary rects removed3paths closed3kento added3nodes150→240",
+    "exportSizeKb": 15,
+    "pass": true
+  },
+  {
+    "testName": "A4 1/8-end kento=true svg 4plates sheet",
+    "paperSize": "A4",
+    "toolId": "1/8-end",
+    "kentoEnabled": true,
+    "exportFormat": "svg",
+    "plateCount": 4,
+    "processStats": "statsboundary rects removed4paths closed4kento added4nodes224→344",
+    "exportSizeKb": 19,
+    "pass": true
+  },
+  {
+    "testName": "A3 60v kento=true svg 8plates",
+    "paperSize": "A3",
+    "toolId": "60v",
+    "kentoEnabled": true,
+    "exportFormat": "svg",
+    "plateCount": 8,
+    "processStats": "statsboundary rects removed8paths closed8kento added8nodes640→880",
+    "exportSizeKb": 64,
+    "pass": true
+  },
+  {
+    "testName": "A6 30v kento=false eps 1plates",
+    "paperSize": "A6",
+    "toolId": "30v",
+    "kentoEnabled": false,
+    "exportFormat": "eps",
+    "plateCount": 1,
+    "processStats": "statsboundary rects removed1paths closed1kento added0nodes38→34",
+    "exportSizeKb": 3,
+    "pass": true
+  }
+]
