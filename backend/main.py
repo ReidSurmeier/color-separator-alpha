@@ -47,6 +47,7 @@ except ImportError:
 _heavy_semaphore = asyncio.Semaphore(HEAVY_SEMAPHORE_LIMIT)
 
 import separate as v20  # noqa: E402
+from analytics import RequestLog  # noqa: E402
 
 try:
     import auto_optimize
@@ -435,6 +436,7 @@ async def preview(
 
 @app.post("/api/preview-stream")
 async def preview_stream(
+    request: Request,
     image: UploadFile = File(...),
     plates: int = Form(3),
     dust: int = Form(20),
@@ -467,6 +469,21 @@ async def preview_stream(
     if err is not None:
         return err
     image_bytes = strip_exif(image_bytes)
+
+    rlog = RequestLog("/api/preview-stream")
+    rlog.set_client(
+        request.headers.get("user-agent", ""),
+        request.client.host if request.client else "",
+    )
+    try:
+        _probe = Image.open(io.BytesIO(image_bytes))
+        _iw, _ih = _probe.size
+        _ifmt = _probe.format or "PNG"
+    except Exception:
+        _iw, _ih, _ifmt = None, None, "PNG"
+    rlog.set_input(w=_iw, h=_ih, kb=round(len(image_bytes) / 1024, 1), fmt=_ifmt)
+    rlog.set_params(plates=plates, dust=dust, version="v20", upscale=upscale, upscale_scale=None)
+
     locked = parse_locked_colors(locked_colors)
     plates = _clamp(plates, PLATES_MIN, SAM_PLATES_MAX)
     dust = _clamp(dust, DUST_MIN, DUST_MAX)
@@ -486,6 +503,8 @@ async def preview_stream(
 
     ok, msg = check_memory_for_sam(n_colors=plates)
     if not ok:
+        rlog.set_error(msg)
+        rlog.finish(503)
         return JSONResponse(
             status_code=503,
             content={"error": msg, "code": "MEMORY_LOW", "retry_after_seconds": 30, "plates_completed": 0},
@@ -535,6 +554,8 @@ async def preview_stream(
                             f'Processing timed out after {SAM_TIMEOUT_SECONDS}s.'
                             ' Try fewer plates or a smaller image.'
                         )
+                        rlog.set_error(_t_err, exc_type="TimeoutError")
+                        rlog.finish(504)
                         yield f"data: {json.dumps({'stage': 'error', 'pct': 0, 'error': _t_err})}\n\n"
                         return
                     while sent < len(progress_events):
@@ -575,17 +596,23 @@ async def preview_stream(
                     'error': 'memory_pressure', 'manifest': manifest, 'image': img_b64,
                 }
                 yield f"data: {json.dumps(_partial)}\n\n"
+                rlog.finish(206)
             else:
                 _done = {'stage': 'complete', 'pct': 100,
                          'manifest': manifest, 'image': img_b64}
                 yield f"data: {json.dumps(_done)}\n\n"
+                rlog.finish(200)
         except (MemoryError, Exception) as e:
             err_str = str(e)
             if isinstance(e, MemoryError) or "CUDA out of memory" in err_str:
                 _oom = {'stage': 'partial_complete', 'pct': 0,
                         'plates_completed': 0, 'error': 'memory_pressure'}
                 yield f"data: {json.dumps(_oom)}\n\n"
+                rlog.set_error(f"{type(e).__name__}: {e}", exc_type=type(e).__name__)
+                rlog.finish(500)
                 return
+            rlog.set_error(f"{type(e).__name__}: {e}", exc_type=type(e).__name__)
+            rlog.finish(500)
             yield f"data: {json.dumps({'stage': 'error', 'pct': 0, 'error': f'{type(e).__name__}: {e}'})}\n\n"
         finally:
             _cleanup_gpu()
@@ -595,6 +622,7 @@ async def preview_stream(
 
 @app.post("/api/separate")
 async def separate_endpoint(
+    request: Request,
     image: UploadFile = File(...),
     plates: int = Form(3),
     dust: int = Form(20),
@@ -623,6 +651,21 @@ async def separate_endpoint(
     if err is not None:
         return err
     image_bytes = strip_exif(image_bytes)
+
+    rlog = RequestLog("/api/separate")
+    rlog.set_client(
+        request.headers.get("user-agent", ""),
+        request.client.host if request.client else "",
+    )
+    try:
+        _probe = Image.open(io.BytesIO(image_bytes))
+        _iw, _ih = _probe.size
+        _ifmt = _probe.format or "PNG"
+    except Exception:
+        _iw, _ih, _ifmt = None, None, "PNG"
+    rlog.set_input(w=_iw, h=_ih, kb=round(len(image_bytes) / 1024, 1), fmt=_ifmt)
+    rlog.set_params(plates=plates, dust=dust, version="v20", upscale=upscale)
+
     locked = parse_locked_colors(locked_colors)
     plates = _clamp(plates, PLATES_MIN, SAM_PLATES_MAX)
     dust = _clamp(dust, DUST_MIN, DUST_MAX)
@@ -656,6 +699,8 @@ async def separate_endpoint(
 
     ok, msg = check_memory_for_sam(n_colors=plates)
     if not ok:
+        rlog.set_error(msg)
+        rlog.finish(503)
         return JSONResponse(
             status_code=503,
             content={"error": msg, "code": "MEMORY_LOW", "retry_after_seconds": 30, "plates_completed": 0},
@@ -669,14 +714,19 @@ async def separate_endpoint(
                 ),
                 timeout=SAM_TIMEOUT_SECONDS,
             )
+        rlog.finish(200)
     except asyncio.TimeoutError:
         _cleanup_gpu()
+        rlog.set_error(f"Timed out after {SAM_TIMEOUT_SECONDS}s", exc_type="TimeoutError")
+        rlog.finish(504)
         return JSONResponse(status_code=504, content={
             "error": f"Processing timed out after {SAM_TIMEOUT_SECONDS}s. Try fewer plates or a smaller image.",
             "code": "TIMEOUT",
         })
     except Exception as e:
         _cleanup_gpu()
+        rlog.set_error(f"{type(e).__name__}: {e}", exc_type=type(e).__name__)
+        rlog.finish(500)
         return JSONResponse(status_code=500, content={
             "error": f"Separation failed: {type(e).__name__}: {e}",
             "code": "PROCESSING_ERROR",
@@ -708,6 +758,7 @@ async def upscale_endpoint(image: UploadFile = File(...)):
 
 @app.post("/api/merge")
 async def merge_endpoint(
+    request: Request,
     image: UploadFile = File(...),
     merge_pairs: str = Form(...),
     plates: int = Form(3),
@@ -728,12 +779,30 @@ async def merge_endpoint(
     if err is not None:
         return err
     image_bytes = strip_exif(image_bytes)
+
+    rlog = RequestLog("/api/merge")
+    rlog.set_client(
+        request.headers.get("user-agent", ""),
+        request.client.host if request.client else "",
+    )
+    try:
+        _probe = Image.open(io.BytesIO(image_bytes))
+        _iw, _ih = _probe.size
+        _ifmt = _probe.format or "PNG"
+    except Exception:
+        _iw, _ih, _ifmt = None, None, "PNG"
+    rlog.set_input(w=_iw, h=_ih, kb=round(len(image_bytes) / 1024, 1), fmt=_ifmt)
+    rlog.set_params(plates=plates, dust=dust, version="v20", upscale=upscale)
+
     locked = parse_locked_colors(locked_colors)
     try:
         pairs = json.loads(merge_pairs)
     except (json.JSONDecodeError, TypeError):
+        rlog.set_error("Invalid merge_pairs JSON")
+        rlog.finish(400)
         return JSONResponse(status_code=400, content={"error": "Invalid merge_pairs JSON."})
 
+    rlog.set_merge_info(pairs)
     plates = _clamp(plates, PLATES_MIN, SAM_PLATES_MAX)
 
     merge_kwargs = dict(
@@ -753,6 +822,8 @@ async def merge_endpoint(
 
     ok, msg = check_memory_for_sam(n_colors=plates)
     if not ok:
+        rlog.set_error(msg)
+        rlog.finish(503)
         return JSONResponse(
             status_code=503,
             content={"error": msg, "code": "MEMORY_LOW", "retry_after_seconds": 30, "plates_completed": 0},
@@ -766,14 +837,19 @@ async def merge_endpoint(
                 ),
                 timeout=SAM_TIMEOUT_SECONDS,
             )
+        rlog.finish(200)
     except asyncio.TimeoutError:
         _cleanup_gpu()
+        rlog.set_error(f"Timed out after {SAM_TIMEOUT_SECONDS}s", exc_type="TimeoutError")
+        rlog.finish(504)
         return JSONResponse(status_code=504, content={
             "error": f"Merge timed out after {SAM_TIMEOUT_SECONDS}s. Try fewer plates or a smaller image.",
             "code": "TIMEOUT",
         })
     except Exception as e:
         _cleanup_gpu()
+        rlog.set_error(f"{type(e).__name__}: {e}", exc_type=type(e).__name__)
+        rlog.finish(500)
         return JSONResponse(status_code=500, content={
             "error": f"Merge failed: {type(e).__name__}: {e}",
             "code": "PROCESSING_ERROR",
@@ -889,6 +965,7 @@ async def plates_endpoint(
 
 @app.post("/api/plates-stream")
 async def plates_stream_endpoint(
+    request: Request,
     image: UploadFile = File(...),
     plates: int = Form(3),
     dust: int = Form(20),
@@ -907,11 +984,22 @@ async def plates_stream_endpoint(
     if err is not None:
         return err
     image_bytes = strip_exif(image_bytes)
+
+    rlog = RequestLog("/api/plates-stream")
+    rlog.set_client(
+        request.headers.get("user-agent", ""),
+        request.client.host if request.client else "",
+    )
+    rlog.set_params(plates=plates, dust=dust, version="v20", upscale=False)
+
     locked = parse_locked_colors(locked_colors)
     try:
         img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         img.load()
+        rlog.set_input(w=img.size[0], h=img.size[1], kb=round(len(image_bytes) / 1024, 1), fmt="PNG")
     except Exception:
+        rlog.set_error("Invalid image file")
+        rlog.finish(400)
         return JSONResponse(status_code=400, content={"error": "Invalid image file"})
 
     max_dim = 800
@@ -938,6 +1026,8 @@ async def plates_stream_endpoint(
 
     ok, msg = check_memory_for_sam(n_colors=plates)
     if not ok:
+        rlog.set_error(msg)
+        rlog.finish(503)
         return JSONResponse(
             status_code=503,
             content={"error": msg, "code": "MEMORY_LOW", "retry_after_seconds": 30, "plates_completed": 0},
@@ -953,6 +1043,9 @@ async def plates_stream_endpoint(
                     loop.run_in_executor(None, lambda: v20.separate(arr, **kwargs)),
                     timeout=SAM_TIMEOUT_SECONDS,
                 )
+
+            _meta = result.get("_meta", {})
+            rlog.set_sam_info(_meta.get("sam_segment_count", 0), _meta.get("sam_device", "unknown"))
 
             plate_infos = result["manifest"]["plates"]
             total = len(plate_infos)
@@ -978,10 +1071,15 @@ async def plates_stream_endpoint(
                 await asyncio.sleep(0)
 
             yield f"data: {json.dumps({'type': 'done', 'total': total})}\n\n"
+            rlog.finish(200)
         except asyncio.TimeoutError:
             _to_msg = f'Processing timed out after {SAM_TIMEOUT_SECONDS}s.'
+            rlog.set_error(_to_msg, exc_type="TimeoutError")
+            rlog.finish(504)
             yield f"data: {json.dumps({'type': 'error', 'error': _to_msg})}\n\n"
         except Exception as e:
+            rlog.set_error(f"{type(e).__name__}: {e}", exc_type=type(e).__name__)
+            rlog.finish(500)
             yield f"data: {json.dumps({'type': 'error', 'error': f'{type(e).__name__}: {e}'})}\n\n"
         finally:
             _cleanup_gpu()

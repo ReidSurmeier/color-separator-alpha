@@ -826,6 +826,10 @@ def separate(input_path_or_array, output_dir=None, n_plates=4, dust_threshold=15
             "manifest": manifest,
             "palette_rgb": palette_rgb,
             "pixel_labels": pixel_labels,
+            "_meta": {
+                "sam_segment_count": len(masks),
+                "sam_device": _sam_device,
+            },
         }
         # Cache for merge reuse — avoids re-running full SAM pipeline on merge.
         # Prefer cache_hash (raw image bytes hash = resolution-independent) so that
