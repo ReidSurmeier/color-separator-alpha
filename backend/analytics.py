@@ -23,8 +23,6 @@ Usage:
 
 import contextlib
 import json
-import os
-import sys
 import threading
 import time
 from datetime import datetime, timezone
@@ -168,6 +166,21 @@ class RequestLog:
         # Image hash
         self._image_hash: str | None = None
 
+        # SAM info
+        self._sam_segment_count: int | None = None
+        self._sam_device: str | None = None
+
+        # ZIP info
+        self._zip_file_count: int | None = None
+        self._zip_total_kb: float | None = None
+
+        # Merge info
+        self._merge_pairs: list | None = None
+
+        # GPU snapshot (before/after processing stage)
+        self._gpu_mem_before_mb: int | None = None
+        self._gpu_mem_after_mb: int | None = None
+
     # ── setters ──────────────────────────────────────────────────────────
 
     def set_input(self, w: int, h: int, kb: float, fmt: str = "PNG") -> None:
@@ -216,6 +229,21 @@ class RequestLog:
     def set_image_hash(self, hash: str) -> None:
         self._image_hash = hash or None
 
+    def set_sam_info(self, segment_count: int, device: str) -> None:
+        self._sam_segment_count = segment_count
+        self._sam_device = device
+
+    def set_zip_info(self, file_count: int, total_kb: float) -> None:
+        self._zip_file_count = file_count
+        self._zip_total_kb = round(total_kb, 1)
+
+    def set_merge_info(self, pairs: list) -> None:
+        self._merge_pairs = pairs
+
+    def set_gpu_snapshot(self, before_mb: int | None, after_mb: int | None) -> None:
+        self._gpu_mem_before_mb = before_mb
+        self._gpu_mem_after_mb = after_mb
+
     # ── stage context manager ─────────────────────────────────────────────
 
     def stage(self, name: str) -> _StageTimer:
@@ -253,6 +281,9 @@ class RequestLog:
             "upscale": "stage_upscale_ms",
             "potrace": "stage_potrace_ms",
             "png_encode": "stage_png_encode_ms",
+            "sam": "stage_sam_ms",
+            "kmeans": "stage_kmeans_ms",
+            "zip": "stage_zip_ms",
         }
         for name, ms in self._stages.items():
             key = _stage_key_map.get(name, f"stage_{name}_ms")
@@ -292,6 +323,28 @@ class RequestLog:
             "error_type": self._error_type,
             "warning": self._warning,
         })
+
+        # SAM info
+        if self._sam_segment_count is not None:
+            entry["sam_segment_count"] = self._sam_segment_count
+        if self._sam_device is not None:
+            entry["sam_device"] = self._sam_device
+
+        # ZIP info
+        if self._zip_file_count is not None:
+            entry["zip_file_count"] = self._zip_file_count
+        if self._zip_total_kb is not None:
+            entry["zip_total_kb"] = self._zip_total_kb
+
+        # Merge info
+        if self._merge_pairs is not None:
+            entry["merge_pairs"] = self._merge_pairs
+
+        # GPU snapshot
+        if self._gpu_mem_before_mb is not None:
+            entry["gpu_mem_before_mb"] = self._gpu_mem_before_mb
+        if self._gpu_mem_after_mb is not None:
+            entry["gpu_mem_after_mb"] = self._gpu_mem_after_mb
 
         _write_entry(entry)
 

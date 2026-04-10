@@ -26,7 +26,7 @@ from collections import defaultdict
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from fastapi import APIRouter, Query
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 from typing import Any
 
@@ -37,6 +37,7 @@ _ALLOWED_EVENTS = {
     "button_press", "param_change", "file_upload", "download_start",
     "download_complete", "merge", "zoom", "compare", "reset",
     "compare_toggle", "process_start", "process_complete", "plate_zoom", "error",
+    "zip_download", "zip_complete",
 }
 
 
@@ -132,6 +133,27 @@ async def log_event(body: EventRequest):
     return JSONResponse({"ok": True})
 
 
+@router.get("/api/analytics/export")
+async def analytics_export():
+    """Stream the raw JSONL log file as a downloadable attachment."""
+    def _iter_log():
+        for path in [_LOG_PATH, Path(f"{_LOG_PATH}.1")]:
+            if not path.exists():
+                continue
+            try:
+                with path.open("r", encoding="utf-8") as fh:
+                    for line in fh:
+                        yield line
+            except Exception:
+                pass
+
+    return StreamingResponse(
+        _iter_log(),
+        media_type="text/plain",
+        headers={"Content-Disposition": "attachment; filename=analytics.jsonl"},
+    )
+
+
 @router.get("/api/analytics/summary")
 async def analytics_summary():
     entries = _read_entries()
@@ -197,6 +219,20 @@ async def analytics_summary():
         except Exception:
             pass
 
+    # New aggregated fields
+    sam_segment_counts = [
+        e["sam_segment_count"] for e in request_entries
+        if isinstance(e.get("sam_segment_count"), (int, float))
+    ]
+    stage_sam_vals = [
+        e["stage_sam_ms"] for e in request_entries
+        if isinstance(e.get("stage_sam_ms"), (int, float))
+    ]
+    stage_kmeans_vals = [
+        e["stage_kmeans_ms"] for e in request_entries
+        if isinstance(e.get("stage_kmeans_ms"), (int, float))
+    ]
+
     return JSONResponse({
         "endpoints": endpoint_stats,
         "top_dimensions": [{"dims": d, "count": c} for d, c in top_dims],
@@ -205,4 +241,13 @@ async def analytics_summary():
         "requests_per_hour_last_24h": dict(sorted(hourly.items())),
         "total_requests": len(request_entries),
         "total_events": len(event_entries),
+        "avg_sam_segment_count": (
+            round(sum(sam_segment_counts) / len(sam_segment_counts), 1) if sam_segment_counts else None
+        ),
+        "avg_stage_sam_ms": (
+            round(sum(stage_sam_vals) / len(stage_sam_vals)) if stage_sam_vals else None
+        ),
+        "avg_stage_kmeans_ms": (
+            round(sum(stage_kmeans_vals) / len(stage_kmeans_vals)) if stage_kmeans_vals else None
+        ),
     })
