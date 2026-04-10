@@ -74,6 +74,14 @@ export function exportCleanedSvg(
     ? generateKentoMarks(width_mm, height_mm, kentoConfig)
     : "";
 
+  // Color test strip: 10×3mm swatch at bottom margin + plate label
+  const stripX = width_mm / 2 - 5;
+  const stripY = height_mm - 3;
+  const colorStrip = [
+    `  <rect x="${stripX}" y="${stripY}" width="10" height="3" fill="${hex}" stroke="black" stroke-width="0.15"/>`,
+    `  <text x="${stripX + 5}" y="${stripY - 0.5}" font-family="monospace" font-size="1.5" text-anchor="middle" fill="black">${plate.name} ${hex}</text>`,
+  ].join("\n");
+
   return [
     `<?xml version="1.0" encoding="UTF-8"?>`,
     `<svg xmlns="http://www.w3.org/2000/svg"`,
@@ -82,6 +90,7 @@ export function exportCleanedSvg(
     `  <title>${plate.name}</title>`,
     pathEls,
     kento ? `  ${kento}` : "",
+    colorStrip,
     `</svg>`,
   ]
     .filter((l) => l !== "")
@@ -336,6 +345,25 @@ export function exportEps(
     lines.push(kentoCommands);
   }
 
+  // Color test strip: filled rectangle at bottom center
+  const stripX = (widthPt / 2) - (10 * MM_TO_PT / 2); // 10mm wide
+  const stripY = 3 * MM_TO_PT; // 3mm from bottom (PS coords: Y-up)
+  const stripW = 10 * MM_TO_PT;
+  const stripH = 3 * MM_TO_PT;
+  lines.push(`% Color test strip`);
+  lines.push(`${r} ${g} ${b} setrgbcolor`);
+  lines.push(`newpath`);
+  lines.push(`${stripX.toFixed(4)} ${stripY.toFixed(4)} moveto`);
+  lines.push(`${(stripX + stripW).toFixed(4)} ${stripY.toFixed(4)} lineto`);
+  lines.push(`${(stripX + stripW).toFixed(4)} ${(stripY + stripH).toFixed(4)} lineto`);
+  lines.push(`${stripX.toFixed(4)} ${(stripY + stripH).toFixed(4)} lineto`);
+  lines.push(`closepath fill`);
+  // Label
+  lines.push(`0 0 0 setrgbcolor`);
+  lines.push(`/Courier 4 selectfont`);
+  lines.push(`${(stripX).toFixed(4)} ${(stripY + stripH + 1 * MM_TO_PT).toFixed(4)} moveto`);
+  lines.push(`(${plate.name} ${colorToHex(plate.color)}) show`);
+
   lines.push(`%%EOF`);
 
   return lines.filter((l) => l !== "").join("\n");
@@ -546,6 +574,24 @@ export function layoutAllPlatesOnSheet(
       svgParts.push(`  ${kentoSvg}`);
     }
   }
+
+  // Color mixing reference strip — all plate colors in print order
+  const stripTop = sheetHeightMm - margin + 2; // Below last plate row, in bottom margin
+  const swatchW = Math.min(15, (sheetWidthMm - margin * 2) / plates.length);
+  const swatchH = 4;
+
+  svgParts.push(`  <!-- Color mixing reference -->`);
+  const sortedPlates = [...plates].sort((a, b) => a.printOrder - b.printOrder);
+  sortedPlates.forEach((plate, i) => {
+    const sx = margin + i * swatchW;
+    const hex = colorToHex(plate.color);
+    svgParts.push(
+      `  <rect x="${sx.toFixed(3)}" y="${stripTop.toFixed(3)}" width="${(swatchW - 0.5).toFixed(3)}" height="${swatchH.toFixed(3)}" fill="${hex}" stroke="black" stroke-width="0.15"/>`,
+    );
+    svgParts.push(
+      `  <text x="${(sx + swatchW / 2).toFixed(3)}" y="${(stripTop - 0.5).toFixed(3)}" font-family="monospace" font-size="2" text-anchor="middle" fill="#333">#${plate.printOrder}</text>`,
+    );
+  });
 
   svgParts.push(`</svg>`);
 

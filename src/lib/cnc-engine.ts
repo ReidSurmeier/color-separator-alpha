@@ -445,6 +445,13 @@ export function setPhysicalDimensions(
 // generateKentoMarks
 // ---------------------------------------------------------------------------
 
+/**
+ * Generate professional registration marks for multi-plate alignment.
+ * Combines Japanese kento (proven for woodblock), CNC dowel references,
+ * and commercial print registration targets.
+ *
+ * All marks are placed OUTSIDE the print area in the margin zone.
+ */
 export function generateKentoMarks(
   widthMm: number,
   heightMm: number,
@@ -453,22 +460,98 @@ export function generateKentoMarks(
   if (!config.enabled) return "";
 
   const { offset_mm: offset, size_mm: size } = config;
+  const parts: string[] = [];
 
-  // Kagi-kento: L-shaped corner mark at bottom-left
+  // --- 1. KAGI-KENTO (L-shaped corner mark, bottom-left) ---
+  // Traditional Japanese registration: L-shape guides paper corner
   const kagiX = offset;
   const kagiY = heightMm - offset;
-  const kagiPath =
-    `M ${kagiX} ${kagiY - size} L ${kagiX} ${kagiY} L ${kagiX + size} ${kagiY}`;
+  parts.push(
+    `<path d="M ${kagiX} ${kagiY - size} L ${kagiX} ${kagiY} L ${kagiX + size} ${kagiY}" ` +
+    `stroke="black" stroke-width="0.5" fill="none" class="kento-kagi"/>`
+  );
 
-  // Hikitsuke-kento: horizontal line at bottom-right
+  // --- 2. HIKITSUKE-KENTO (edge guide, bottom-right) ---
+  // Horizontal reference line for paper edge alignment
   const hikX1 = widthMm - offset - size;
   const hikX2 = widthMm - offset;
   const hikY = heightMm - offset;
-  const hikitukePath = `M ${hikX1} ${hikY} L ${hikX2} ${hikY}`;
+  parts.push(
+    `<path d="M ${hikX1} ${hikY} L ${hikX2} ${hikY}" ` +
+    `stroke="black" stroke-width="0.5" fill="none" class="kento-hikitsuke"/>`
+  );
 
-  const combined = `${kagiPath} ${hikitukePath}`;
+  // --- 3. REGISTRATION CROSSHAIRS (all 4 corners) ---
+  // Commercial print standard: cross + circle at each corner
+  const crossSize = 3; // 3mm arms
+  const circleR = 2;   // 2mm radius circle
+  const crossW = 0.25; // hairline
 
-  return `<path d="${combined}" stroke="black" stroke-width="0.5" fill="none"/>`;
+  const corners = [
+    { x: offset, y: offset },                           // top-left
+    { x: widthMm - offset, y: offset },                 // top-right
+    { x: offset, y: heightMm - offset },                // bottom-left (near kagi)
+    { x: widthMm - offset, y: heightMm - offset },      // bottom-right (near hikitsuke)
+  ];
+
+  for (const { x, y } of corners) {
+    // Crosshair
+    parts.push(
+      `<path d="M ${x - crossSize} ${y} L ${x + crossSize} ${y} M ${x} ${y - crossSize} L ${x} ${y + crossSize}" ` +
+      `stroke="black" stroke-width="${crossW}" fill="none" class="reg-cross"/>`
+    );
+    // Circle
+    parts.push(
+      `<circle cx="${x}" cy="${y}" r="${circleR}" ` +
+      `stroke="black" stroke-width="${crossW}" fill="none" class="reg-circle"/>`
+    );
+  }
+
+  // --- 4. CENTER MARKS (top + bottom edge centers) ---
+  const centerX = widthMm / 2;
+  // Top center
+  parts.push(
+    `<path d="M ${centerX - crossSize} ${offset} L ${centerX + crossSize} ${offset} ` +
+    `M ${centerX} ${offset - crossSize} L ${centerX} ${offset + crossSize}" ` +
+    `stroke="black" stroke-width="${crossW}" fill="none" class="reg-center"/>`
+  );
+  // Bottom center
+  parts.push(
+    `<path d="M ${centerX - crossSize} ${heightMm - offset} L ${centerX + crossSize} ${heightMm - offset} ` +
+    `M ${centerX} ${heightMm - offset - crossSize} L ${centerX} ${heightMm - offset + crossSize}" ` +
+    `stroke="black" stroke-width="${crossW}" fill="none" class="reg-center"/>`
+  );
+
+  // --- 5. DOWEL PIN HOLES (CNC standard — opposite corners) ---
+  // Round hole top-left, diamond hole bottom-right
+  // These are cut marks for drilling alignment pin holes
+  const pinR = 1.5; // 3mm diameter dowel
+  const pinOffset = offset + size + 3; // Beyond kento marks
+
+  // Round pin hole indicator (top-left)
+  parts.push(
+    `<circle cx="${pinOffset}" cy="${pinOffset}" r="${pinR}" ` +
+    `stroke="black" stroke-width="0.3" fill="none" stroke-dasharray="0.5,0.5" class="pin-round"/>`
+  );
+  // Center dot
+  parts.push(
+    `<circle cx="${pinOffset}" cy="${pinOffset}" r="0.3" fill="black" class="pin-center"/>`
+  );
+
+  // Diamond pin hole indicator (bottom-right) — allows thermal expansion
+  const pinBRx = widthMm - pinOffset;
+  const pinBRy = heightMm - pinOffset;
+  const dw = pinR;
+  const dh = pinR * 1.5;
+  parts.push(
+    `<path d="M ${pinBRx} ${pinBRy - dh} L ${pinBRx + dw} ${pinBRy} L ${pinBRx} ${pinBRy + dh} L ${pinBRx - dw} ${pinBRy} Z" ` +
+    `stroke="black" stroke-width="0.3" fill="none" stroke-dasharray="0.5,0.5" class="pin-diamond"/>`
+  );
+  parts.push(
+    `<circle cx="${pinBRx}" cy="${pinBRy}" r="0.3" fill="black" class="pin-center"/>`
+  );
+
+  return parts.join("\n");
 }
 
 // ---------------------------------------------------------------------------
