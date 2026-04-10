@@ -617,10 +617,41 @@ export async function fetchPlatesSvg(
   const res = await fetchWithRetry(
     `${BACKEND_URL}/api/plates-svg`,
     { method: "POST", body: fd, signal },
-    600_000 // 600s — potrace at full resolution (4000px+) is slow but produces best quality
+    30_000 // Submit is fast — returns job_id or cached result
   );
   if (!res.ok) throw new ApiError(`SVG fetch failed: ${res.status}`, "UNKNOWN", res.status);
-  return res.json();
+
+  const data = await res.json();
+
+  // Fast path: cached result returned directly as array
+  if (Array.isArray(data)) return data;
+
+  // Async job path: poll /api/job/{id} until done
+  const jobId = data.job_id;
+  if (!jobId) throw new ApiError("No job_id in plates-svg response", "UNKNOWN");
+
+  const deadline = Date.now() + 600_000; // 10 min max
+  while (Date.now() < deadline) {
+    if (signal?.aborted) throw new ApiError("Cancelled", "REQUEST_CANCELLED");
+    await new Promise((r) => setTimeout(r, 2_000));
+
+    const pollRes = await fetchWithRetry(
+      `${BACKEND_URL}/api/job/${jobId}`,
+      { method: "GET", signal },
+      10_000,
+      1
+    );
+
+    if (pollRes.status === 404) throw new ApiError("SVG job expired", "UNKNOWN", 404);
+
+    const pollData = await pollRes.json();
+
+    // Job done — result is the SVG array
+    if (Array.isArray(pollData)) return pollData;
+    if (pollData.status === "error") throw new ApiError(pollData.error || "SVG generation failed", "UNKNOWN", 500);
+    // Still running — continue polling
+  }
+  throw new ApiError("SVG generation timed out after 10 minutes", "TIMEOUT");
 }
 
 // ---------------------------------------------------------------------------
