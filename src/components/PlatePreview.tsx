@@ -370,8 +370,8 @@ export default function PlatePreview({
                 background: "white",
                 border: "1px solid #e0e0e0",
                 aspectRatio: `${aspectRatio}`,
-                maxWidth: "min(800px, 60vw)",
-                maxHeight: "min(700px, 75vh)",
+                maxWidth: "95%",
+                maxHeight: "85vh",
                 width: "100%",
                 overflow: "hidden",
               }}

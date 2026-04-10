@@ -37,9 +37,14 @@ export default function ColorSeparator() {
   return (
     <>
       {/* Back to tools bar */}
-      <a href="https://tools.reidsurmeier.wtf" className="back-to-tools">
-        &larr; tools.reidsurmeier.wtf
-      </a>
+      <div className="back-to-tools">
+        <a href="https://tools.reidsurmeier.wtf">
+          &larr; tools.reidsurmeier.wtf
+        </a>
+        <a href="/cnc">
+          cnc.toolpath &rarr;
+        </a>
+      </div>
 
       {/* Hamburger button (mobile only) */}
       <button

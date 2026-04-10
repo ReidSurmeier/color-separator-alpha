@@ -94,11 +94,8 @@ export default function CncNavPanel({
 
   return (
     <div className={`nav-panel${navOpen ? " nav-open" : ""}`}>
-      <h3
-        className="app-title"
-        style={{ fontFamily: "DepartureMono, monospace", fontSize: "1.2em" }}
-      >
-        CNC.TOOLPATH
+      <h3 className="app-title">
+        <span>CNC.TOOLPATH</span>
       </h3>
 
       {/* Source */}

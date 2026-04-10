@@ -194,6 +194,7 @@ select:hover {
   height: 28px;
   display: flex;
   align-items: center;
+  gap: 16px;
   padding: 0 12px;
   background: #f0f0f0;
   color: #999;
@@ -203,7 +204,11 @@ select:hover {
   z-index: 200;
   border-bottom: 1px solid #e0e0e0;
 }
-.back-to-tools:hover {
+.back-to-tools a {
+  color: #999;
+  text-decoration: none;
+}
+.back-to-tools a:hover {
   color: #666;
 }
 

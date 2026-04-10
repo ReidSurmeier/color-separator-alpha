@@ -19,10 +19,15 @@ export default function CncPage() {
 
   return (
     <>
-      {/* Back link */}
-      <a href="/" className="back-to-tools">
-        &larr; color.separator
-      </a>
+      {/* Nav bar */}
+      <div className="back-to-tools">
+        <a href="/">
+          &larr; color.separator
+        </a>
+        <a href="https://tools.reidsurmeier.wtf">
+          tools.reidsurmeier.wtf
+        </a>
+      </div>
 
       {/* Hamburger (mobile) */}
       <button

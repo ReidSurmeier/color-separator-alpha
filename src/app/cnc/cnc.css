@@ -7,13 +7,13 @@
 }
 
 .cnc-preview-area {
-  flex: 1;
+  margin-left: calc(250px + 4vw + 20px);
   display: flex;
   flex-direction: column;
-  padding: 50px 20px 20px calc(250px + 4vw + 20px);
-  overflow: hidden;
-  min-width: 0;
-  height: 100vh;
+  align-items: center;
+  padding: 2vw 2vw 0;
+  padding-top: calc(2vw + 28px);
+  min-height: calc(100vh - 28px);
 }
 
 /* ── Tool grid (2×3) ── */
