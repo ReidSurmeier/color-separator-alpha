@@ -322,18 +322,19 @@ export default function PlatePreview({
       {/* Plate info bar (plate mode) */}
       {viewMode === "plate" && renderPlateInfo()}
 
-      {/* Canvas area */}
+      {/* Canvas area — fills available space */}
       <div
         style={{
           flex: 1,
           display: "flex",
-          alignItems: "center",
+          alignItems: "stretch",
           justifyContent: "center",
           minHeight: 0,
+          width: "100%",
         }}
       >
         {/* Dimension labels + plate container */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", justifyContent: "center" }}>
           {/* Height label (rotated, left side) */}
           <div
             style={{
@@ -344,13 +345,14 @@ export default function PlatePreview({
               color: "#999",
               userSelect: "none",
               whiteSpace: "nowrap",
+              flexShrink: 0,
             }}
           >
             {heightLabel}
           </div>
 
           {/* Plate + width label column */}
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, flex: 1, minWidth: 0 }}>
             {/* Width label */}
             <div
               style={{
@@ -370,9 +372,8 @@ export default function PlatePreview({
                 background: "white",
                 border: "1px solid #e0e0e0",
                 aspectRatio: `${aspectRatio}`,
-                maxWidth: "95%",
-                maxHeight: "85vh",
                 width: "100%",
+                maxHeight: "calc(100vh - 120px)",
                 overflow: "hidden",
               }}
             >
