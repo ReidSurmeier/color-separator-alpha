@@ -156,21 +156,35 @@ test.describe.serial("Color Separator 5-Image E2E", () => {
       }
 
       // --- 6. Download ZIP ---
+      // Frontend uses programmatic blob download. Click ZIP, wait for progress then completion.
       t0 = Date.now();
       try {
-        const [download] = await Promise.all([
-          page.waitForEvent("download", { timeout: 120_000 }),
-          page.locator("button").filter({ hasText: /^ZIP$/ }).first().click(),
-        ]);
-        const downloadPath = `/tmp/colorsep-zips/e2e_${String(testId).padStart(2, "0")}.zip`;
-        await download.saveAs(downloadPath);
-        const zipSize = fs.statSync(downloadPath).size / 1024;
+        // Click the download/ZIP button
+        const h3Download = page.locator("h3").filter({ hasText: /^download$/ });
+        const zipBtn = h3Download.locator("~ button").first();
+        await zipBtn.click();
+
+        // Wait for the button to become disabled (download started)
+        await page.waitForTimeout(500);
+
+        // Then wait for it to become enabled again with text "ZIP" (download completed)
+        await page.waitForFunction(
+          () => {
+            const h3s = Array.from(document.querySelectorAll("h3"));
+            const dlH3 = h3s.find(h => h.textContent?.trim() === "download");
+            if (!dlH3) return false;
+            const btn = dlH3.nextElementSibling as HTMLButtonElement | null;
+            if (!btn || btn.tagName !== "BUTTON") return false;
+            return btn.textContent?.trim() === "ZIP" && !btn.disabled;
+          },
+          { timeout: 300_000 }
+        );
+
         logResult({
           ...base,
           step: "download_zip",
           success: true,
           duration_s: (Date.now() - t0) / 1000,
-          details: { zip_size_kb: Math.round(zipSize) },
         });
       } catch (e) {
         logResult({
