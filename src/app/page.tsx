@@ -124,6 +124,7 @@ export default function ColorSeparator() {
         onCancel={s.cancelRequest}
         upscaleScale={s.upscaleScale}
         onUpscaleScaleChange={s.setUpscaleScale}
+        onPrepareCnc={s.handlePrepareCnc}
       />
 
       {/* About overlay */}

@@ -981,6 +981,23 @@ export function useColorSeparator() {
     }
   }, [file, mergeGroups, manifest, getParams, upscaleHash, fetchPlateImagesFromApi]);
 
+  const handlePrepareCnc = useCallback(() => {
+    if (!manifest || !compositeUrl) return;
+    const cncPlates = plateImages.map((p, i) => {
+      const manifestPlate = manifest.plates[i];
+      return {
+        name: manifestPlate?.name ?? p.name,
+        color: p.color,
+        // Use PNG data URL as fallback — CNC page accepts either SVG or PNG
+        svg: p.svg ?? null,
+        pngUrl: p.url,
+      };
+    });
+    const payload = JSON.stringify({ plates: cncPlates, manifest });
+    sessionStorage.setItem("cnc-plates", payload);
+    window.location.href = "/cnc";
+  }, [manifest, compositeUrl, plateImages]);
+
   const handlePlateZoom = useCallback((index: number | null) => {
     if (index !== null) {
       const plate = plateImages[index];
@@ -1130,6 +1147,7 @@ export function useColorSeparator() {
     handleAddColor,
     handleDownload,
     handleMerge,
+    handlePrepareCnc,
     autoSuggestMerge,
     mergeSuggestions,
     // Refs

@@ -1,6 +1,134 @@
 import type { CncPlate, KentoConfig, SupportIsland } from "./cnc-types";
 
 // ---------------------------------------------------------------------------
+// extractTestRegion
+// ---------------------------------------------------------------------------
+
+export interface TestRegion {
+  plateName: string;
+  svgSnippet: string;
+  x: number;
+  y: number;
+  widthMm: number;
+  heightMm: number;
+}
+
+/**
+ * For each plate SVG, find the 50×50mm patch with the highest density of path
+ * commands (geometric complexity). Returns one TestRegion per plate.
+ */
+export function extractTestRegion(
+  plates: { name: string; svg: string }[],
+  patchMm = 50
+): TestRegion[] {
+  const results: TestRegion[] = [];
+
+  for (const plate of plates) {
+    const { paths, viewBox, width, height } = parseSvg(plate.svg);
+    const svgW = width || viewBox?.width || 0;
+    const svgH = height || viewBox?.height || 0;
+
+    if (paths.length === 0 || svgW === 0 || svgH === 0) {
+      results.push({
+        plateName: plate.name,
+        svgSnippet: "",
+        x: 0,
+        y: 0,
+        widthMm: patchMm,
+        heightMm: patchMm,
+      });
+      continue;
+    }
+
+    // Score each path by commands-per-bounding-box-area (complexity density)
+    // Then find the patch origin that captures the most complexity.
+    const cmdRe = /[MmLlHhVvCcSsQqTtAaZz]/g;
+
+    interface PathInfo {
+      d: string;
+      cmdCount: number;
+      cx: number; // bounding box center x
+      cy: number;
+    }
+
+    const pathInfos: PathInfo[] = [];
+    for (const d of paths) {
+      const bb = pathBoundingBox(d);
+      if (!bb) continue;
+      const hits = d.match(cmdRe);
+      const cmdCount = hits ? hits.length : 0;
+      pathInfos.push({
+        d,
+        cmdCount,
+        cx: (bb.minX + bb.maxX) / 2,
+        cy: (bb.minY + bb.maxY) / 2,
+      });
+    }
+
+    // Find the patch origin (top-left) that maximises sum of cmdCounts for
+    // paths whose center falls inside the patch.
+    let bestX = 0;
+    let bestY = 0;
+    let bestScore = -1;
+
+    // Candidate origins: center of each path's bbox, clamped so patch fits
+    const candidates: Array<[number, number]> = [[0, 0]];
+    for (const pi of pathInfos) {
+      const ox = Math.max(0, Math.min(pi.cx - patchMm / 2, svgW - patchMm));
+      const oy = Math.max(0, Math.min(pi.cy - patchMm / 2, svgH - patchMm));
+      candidates.push([ox, oy]);
+    }
+
+    for (const [ox, oy] of candidates) {
+      let score = 0;
+      for (const pi of pathInfos) {
+        if (
+          pi.cx >= ox &&
+          pi.cx <= ox + patchMm &&
+          pi.cy >= oy &&
+          pi.cy <= oy + patchMm
+        ) {
+          score += pi.cmdCount;
+        }
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        bestX = ox;
+        bestY = oy;
+      }
+    }
+
+    // Collect paths whose centers fall in the best patch
+    const patchPaths = pathInfos
+      .filter(
+        (pi) =>
+          pi.cx >= bestX &&
+          pi.cx <= bestX + patchMm &&
+          pi.cy >= bestY &&
+          pi.cy <= bestY + patchMm
+      )
+      .map((pi) => pi.d);
+
+    const pathElements = patchPaths
+      .map((d) => `<path d="${d}" fill="black"/>`)
+      .join("\n");
+
+    const svgSnippet = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${bestX} ${bestY} ${patchMm} ${patchMm}" width="${patchMm}mm" height="${patchMm}mm">\n${pathElements}\n</svg>`;
+
+    results.push({
+      plateName: plate.name,
+      svgSnippet,
+      x: bestX,
+      y: bestY,
+      widthMm: patchMm,
+      heightMm: patchMm,
+    });
+  }
+
+  return results;
+}
+
+// ---------------------------------------------------------------------------
 // parseSvg
 // ---------------------------------------------------------------------------
 

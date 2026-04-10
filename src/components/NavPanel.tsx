@@ -75,6 +75,7 @@ interface NavPanelProps {
   onClearError: () => void;
   onRetry: () => void;
   onCancel: () => void;
+  onPrepareCnc: () => void;
 }
 
 export default function NavPanel({
@@ -144,6 +145,7 @@ export default function NavPanel({
   onClearError,
   onRetry,
   onCancel,
+  onPrepareCnc,
 }: NavPanelProps) {
   return (
     <div className={`nav-panel${navOpen ? " nav-open" : ""}`}>
@@ -597,6 +599,11 @@ export default function NavPanel({
           </>
         );
       })()}
+
+      <h3>cnc</h3>
+      <button onClick={onPrepareCnc} disabled={!compositeUrl || !manifest}>
+        prepare for CNC &rarr;
+      </button>
 
       <h3>about</h3>
       <button onClick={onToggleAbout}>{showAbout ? "hide" : "show"}</button>
