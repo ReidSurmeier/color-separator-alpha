@@ -14,6 +14,7 @@ import {
   convertUnits,
 } from "@/lib/cnc-engine";
 import { exportProjectZip } from "@/lib/cnc-export";
+import { trackEvent } from "@/lib/api";
 
 // ---------------------------------------------------------------------------
 // Defaults
@@ -138,6 +139,10 @@ export function useCncProcessor() {
 
       const sorted = sortPlatesByLuminance(loaded).map((p, i) => ({ ...p, printOrder: i + 1 }));
       setPlates(sorted);
+      trackEvent("cnc_session_load", {
+        plateCount: sorted.length,
+        hasManifest: !!(parsed.manifest?.printWidth_mm),
+      });
 
       if (parsed.manifest?.printWidth_mm && parsed.manifest?.printHeight_mm) {
         setPrintSize((prev) => ({
@@ -185,6 +190,12 @@ export function useCncProcessor() {
         };
         setPlates([plate]);
         setPrintSize((prev) => ({ ...prev, ...dims }));
+        trackEvent("cnc_file_upload", {
+          fileName: file.name,
+          fileType: "svg",
+          plateCount: 1,
+          fileSizeKb: Math.round(file.size / 1024),
+        });
         return;
       }
 
@@ -293,6 +304,13 @@ export function useCncProcessor() {
           const dims = parseSvgDimensions(sorted[0].svgRaw);
           setPrintSize((prev) => ({ ...prev, ...dims }));
         }
+
+        trackEvent("cnc_file_upload", {
+          fileName: file.name,
+          fileType: "zip",
+          plateCount: sorted.length,
+          fileSizeKb: Math.round(file.size / 1024),
+        });
       }
     },
     []
@@ -310,13 +328,18 @@ export function useCncProcessor() {
         ...prev,
         [`${key}_mm`]: mm,
       }));
+      trackEvent("cnc_print_size_change", { key, value, unit });
     },
     [unit]
   );
 
   const handleUnitToggle = useCallback(() => {
     // Just flip the display unit — internal state stays in mm
-    setUnit((prev) => (prev === "mm" ? "in" : "mm"));
+    setUnit((prev) => {
+      const next = prev === "mm" ? "in" : "mm";
+      trackEvent("cnc_unit_toggle", { unit: next });
+      return next;
+    });
   }, []);
 
   // ---------------------------------------------------------------------------
@@ -324,7 +347,11 @@ export function useCncProcessor() {
   // ---------------------------------------------------------------------------
 
   const handleKentoToggle = useCallback(() => {
-    setKentoConfig((prev) => ({ ...prev, enabled: !prev.enabled }));
+    setKentoConfig((prev) => {
+      const next = { ...prev, enabled: !prev.enabled };
+      trackEvent("cnc_kento_toggle", { enabled: next.enabled });
+      return next;
+    });
   }, []);
 
   const handleKentoChange = useCallback((key: string, value: number) => {
@@ -337,7 +364,10 @@ export function useCncProcessor() {
 
   const handleToolChange = useCallback((toolId: string) => {
     const tool = TOOLS.find((t) => t.id === toolId);
-    if (tool) setSelectedTool(tool);
+    if (tool) {
+      setSelectedTool(tool);
+      trackEvent("cnc_tool_change", { toolId, toolLabel: tool.label, toolType: tool.type });
+    }
   }, []);
 
   // ---------------------------------------------------------------------------
@@ -347,6 +377,14 @@ export function useCncProcessor() {
   const handleProcess = useCallback(async () => {
     if (plates.length === 0) return;
     setIsProcessing(true);
+    const processStart = performance.now();
+    trackEvent("cnc_process_start", {
+      plateCount: plates.length,
+      kentoEnabled: kentoConfig.enabled,
+      toolId: selectedTool.id,
+      printWidth: printSize.width_mm,
+      printHeight: printSize.height_mm,
+    });
 
     try {
       let totalBoundariesRemoved = 0;
@@ -416,6 +454,15 @@ export function useCncProcessor() {
         nodes_before: totalNodesBefore,
         nodes_after: totalNodesAfter,
       });
+      trackEvent("cnc_process_complete", {
+        plateCount: plates.length,
+        durationMs: Math.round(performance.now() - processStart),
+        boundariesRemoved: totalBoundariesRemoved,
+        nodesBefore: totalNodesBefore,
+        nodesAfter: totalNodesAfter,
+        kentoMarks: totalKentoMarks,
+        compressionRatio: totalNodesBefore > 0 ? +(totalNodesAfter / totalNodesBefore).toFixed(3) : null,
+      });
     } finally {
       setIsProcessing(false);
     }
@@ -426,6 +473,7 @@ export function useCncProcessor() {
   // ---------------------------------------------------------------------------
 
   const handleReset = useCallback(() => {
+    trackEvent("cnc_reset", { plateCount: plates.length });
     setPlates([]);
     setFileName("");
     setHasProcessed(false);
@@ -440,7 +488,7 @@ export function useCncProcessor() {
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
-  }, []);
+  }, [plates.length]);
 
   // ---------------------------------------------------------------------------
   // Export
@@ -448,14 +496,23 @@ export function useCncProcessor() {
 
   const handleExportFormatChange = useCallback((fmt: "svg" | "dxf" | "eps") => {
     setExportFormat(fmt);
+    trackEvent("cnc_format_change", { format: fmt });
   }, []);
 
   const handleExportLayoutChange = useCallback((layout: "individual" | "sheet") => {
     setExportLayout(layout);
+    trackEvent("cnc_layout_change", { layout });
   }, []);
 
   const handleExport = useCallback(async () => {
     if (plates.length === 0) return;
+
+    const exportStart = performance.now();
+    trackEvent("cnc_export_start", {
+      format: exportFormat,
+      layout: exportLayout,
+      plateCount: plates.length,
+    });
 
     const blob = await exportProjectZip(
       plates,
@@ -471,6 +528,13 @@ export function useCncProcessor() {
     a.download = "cnc-plates.zip";
     a.click();
     URL.revokeObjectURL(url);
+    trackEvent("cnc_export_complete", {
+      format: exportFormat,
+      layout: exportLayout,
+      plateCount: plates.length,
+      durationMs: Math.round(performance.now() - exportStart),
+      zipSizeKb: Math.round(blob.size / 1024),
+    });
   }, [plates, printSize, kentoConfig, exportFormat, exportLayout]);
 
   // ---------------------------------------------------------------------------
@@ -479,6 +543,7 @@ export function useCncProcessor() {
 
   const handleSelectPlate = useCallback((index: number | null) => {
     setSelectedPlateIndex(index);
+    trackEvent("cnc_plate_select", { plateIndex: index });
   }, []);
 
   const handleReorderPlates = useCallback((fromIndex: number, toIndex: number) => {
@@ -496,6 +561,7 @@ export function useCncProcessor() {
 
   const handleViewModeChange = useCallback((mode: "composite" | "plate") => {
     setViewMode(mode);
+    trackEvent("cnc_view_change", { mode });
   }, []);
 
   // ---------------------------------------------------------------------------

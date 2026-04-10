@@ -38,6 +38,11 @@ _ALLOWED_EVENTS = {
     "download_complete", "merge", "zoom", "compare", "reset",
     "compare_toggle", "process_start", "process_complete", "plate_zoom", "error",
     "zip_download", "zip_complete",
+    "cnc_file_upload", "cnc_process_start", "cnc_process_complete",
+    "cnc_export_start", "cnc_export_complete", "cnc_tool_change",
+    "cnc_kento_toggle", "cnc_unit_toggle", "cnc_print_size_change",
+    "cnc_plate_select", "cnc_view_change", "cnc_format_change",
+    "cnc_layout_change", "cnc_reset", "cnc_session_load",
 }
 
 
@@ -233,6 +238,28 @@ async def analytics_summary():
         if isinstance(e.get("stage_kmeans_ms"), (int, float))
     ]
 
+    # CNC-specific metrics
+    cnc_events = [e for e in event_entries if e.get("event", "").startswith("cnc_")]
+    cnc_process_events = [e for e in cnc_events if e.get("event") == "cnc_process_complete"]
+    cnc_export_events = [e for e in cnc_events if e.get("event") == "cnc_export_complete"]
+
+    cnc_process_durations = [e.get("durationMs", 0) for e in cnc_process_events if e.get("durationMs")]
+    cnc_export_durations = [e.get("durationMs", 0) for e in cnc_export_events if e.get("durationMs")]
+    cnc_zip_sizes = [e.get("zipSizeKb", 0) for e in cnc_export_events if e.get("zipSizeKb")]
+    cnc_compression = [e.get("compressionRatio", 0) for e in cnc_process_events if e.get("compressionRatio")]
+
+    # Tool usage distribution
+    cnc_tool_events = [e for e in cnc_events if e.get("event") == "cnc_tool_change"]
+    tool_counts: dict[str, int] = defaultdict(int)
+    for e in cnc_tool_events:
+        tool_counts[e.get("toolId", "unknown")] += 1
+
+    # Format usage distribution
+    cnc_format_events = [e for e in cnc_events if e.get("event") == "cnc_export_complete"]
+    format_counts: dict[str, int] = defaultdict(int)
+    for e in cnc_format_events:
+        format_counts[e.get("format", "unknown")] += 1
+
     return JSONResponse({
         "endpoints": endpoint_stats,
         "top_dimensions": [{"dims": d, "count": c} for d, c in top_dims],
@@ -250,4 +277,15 @@ async def analytics_summary():
         "avg_stage_kmeans_ms": (
             round(sum(stage_kmeans_vals) / len(stage_kmeans_vals)) if stage_kmeans_vals else None
         ),
+        "cnc": {
+            "total_events": len(cnc_events),
+            "total_processes": len(cnc_process_events),
+            "total_exports": len(cnc_export_events),
+            "avg_process_ms": round(sum(cnc_process_durations) / len(cnc_process_durations)) if cnc_process_durations else None,
+            "avg_export_ms": round(sum(cnc_export_durations) / len(cnc_export_durations)) if cnc_export_durations else None,
+            "avg_zip_size_kb": round(sum(cnc_zip_sizes) / len(cnc_zip_sizes), 1) if cnc_zip_sizes else None,
+            "avg_compression_ratio": round(sum(cnc_compression) / len(cnc_compression), 3) if cnc_compression else None,
+            "tool_usage": dict(tool_counts),
+            "format_usage": dict(format_counts),
+        },
     })
