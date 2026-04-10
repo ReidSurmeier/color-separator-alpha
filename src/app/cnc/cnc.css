@@ -1,0 +1,118 @@
+/* ── CNC page layout ── */
+.cnc-layout {
+  display: flex;
+  height: 100vh;
+  padding-top: 28px;
+  overflow: hidden;
+}
+
+.cnc-preview-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 20px 20px 20px calc(250px + 4vw + 20px);
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* ── Tool grid (2×3) ── */
+.cnc-tool-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+}
+
+/* ── Plate list ── */
+.cnc-plate-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cnc-plate-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px;
+  cursor: pointer;
+  font-size: 12px;
+  background: transparent;
+  transition: background 0.1s;
+}
+
+.cnc-plate-item:hover {
+  background: #f0f0f0;
+}
+
+.cnc-plate-item[data-selected="true"] {
+  background: #14ff00;
+}
+
+.cnc-plate-swatch {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+.cnc-plate-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cnc-plate-order {
+  color: #999;
+  flex-shrink: 0;
+  font-family: monospace;
+  font-size: 11px;
+}
+
+/* ── Stats ── */
+.cnc-stats {
+  margin-top: 12px;
+}
+
+/* ── Preview area ── */
+.cnc-preview {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* ── Preview toggle bar ── */
+.cnc-preview-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+/* ── Dimension labels ── */
+.cnc-dimension-label {
+  font-family: "DepartureMono", monospace;
+  font-size: 11px;
+  color: #999;
+  user-select: none;
+}
+
+/* ── Export toggles ── */
+.cnc-export-toggle {
+  display: flex;
+  gap: 2px;
+}
+
+.cnc-export-toggle button {
+  flex: 1;
+}
+
+/* ── Mobile responsive ── */
+@media (max-width: 768px) {
+  .cnc-preview-area {
+    padding: 12px;
+    padding-top: 40px;
+  }
+}
