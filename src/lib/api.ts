@@ -629,7 +629,7 @@ export async function fetchPlatesSvg(
 
 // Fire-and-forget analytics event — never throws, never blocks UI
 export function trackEvent(event: string, data?: Record<string, unknown>): void {
-  fetch('/api/analytics/event', {
+  fetch(`${BACKEND_URL}/api/analytics/event`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ event, data }),

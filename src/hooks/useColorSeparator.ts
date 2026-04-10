@@ -755,6 +755,8 @@ export function useColorSeparator() {
     setProgressStage("Building ZIP");
     setProgressPct(0);
     trackEvent('download_start', { plates: plateImages.length, hasUpscale: upscale });
+    trackEvent('zip_download', { plates: getParams().plates, upscale: getParams().upscale });
+    const zipStartTime = performance.now();
     const downloadStartTime = performance.now();
     try {
       // Build ZIP entirely client-side from cached composite + plates (no backend re-call)
@@ -859,6 +861,7 @@ export function useColorSeparator() {
       setProgressPct(100);
       setDownloadProgress("done");
 
+      trackEvent('zip_complete', { plates: getParams().plates, duration_ms: Math.round(performance.now() - zipStartTime) });
       trackEvent('download_complete', {
         plates: plateImages.length,
         durationMs: Math.round(performance.now() - downloadStartTime),
@@ -929,6 +932,7 @@ export function useColorSeparator() {
     trackEvent('merge', {
       plateIndices: validGroups.flat(),
       plateCount: plateImages.length,
+      pair_count: mergeGroups.flat().length,
     });
     try {
       // mergeGroups stores DISPLAY indices (position in plateImages array).
