@@ -75,19 +75,33 @@ def mask_to_svg(mask, width, height, **_kwargs):
     canvas_rect_path = None  # Hold the canvas rect in case it's the only curve
     trace_h, trace_w = trace_mask.shape
 
-    def _is_canvas_rect(start, segs, w, h, tol=1.5):
-        """True only for the potrace wrapper rectangle: 4 corner segments at canvas boundary."""
-        if len(segs) != 4:
-            return False
+    def _is_canvas_rect(start, segs, w, h, tol=2.0):
+        """True for the potrace wrapper rectangle that covers the full canvas.
+
+        Potrace may emit 4 corner segments (small images) or 8 segments with
+        midpoints (large images). Detect both by checking that ALL endpoints
+        sit on the canvas boundary (within tolerance).
+        """
         if not all(s.is_corner for s in segs):
             return False
-        endpoints = [(start.x, start.y)] + [(s.end_point.x, s.end_point.y) for s in segs[:3]]
-        corners = {(0, 0), (w, 0), (w, h), (0, h)}
-        matched = sum(
-            any(abs(ex - cx) < tol and abs(ey - cy) < tol for cx, cy in corners)
-            for ex, ey in endpoints
-        )
-        return matched == 4
+        if len(segs) < 4:
+            return False
+        # Collect all endpoints including start
+        pts = [(start.x, start.y)] + [(s.end_point.x, s.end_point.y) for s in segs]
+        # Every point must be on the canvas edge (x≈0, x≈w, y≈0, or y≈h)
+        for px, py in pts:
+            on_edge = (
+                abs(px) < tol or abs(px - w) < tol or
+                abs(py) < tol or abs(py - h) < tol
+            )
+            if not on_edge:
+                return False
+        # Must touch all 4 edges
+        has_left = any(abs(px) < tol for px, _ in pts)
+        has_right = any(abs(px - w) < tol for px, _ in pts)
+        has_top = any(abs(py) < tol for _, py in pts)
+        has_bottom = any(abs(py - h) < tol for _, py in pts)
+        return has_left and has_right and has_top and has_bottom
 
     def _curve_to_path(curve):
         """Convert a potrace curve to SVG path data string."""
