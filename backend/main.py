@@ -18,6 +18,7 @@ from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, JSONResponse
 from PIL import Image
+from starlette.background import BackgroundTask
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import StreamingResponse
@@ -121,6 +122,12 @@ def strip_exif(image_bytes: bytes) -> bytes:
 
 
 app = FastAPI(title="Woodblock Color Separation API")
+
+from analytics_api import router as analytics_router  # noqa: E402
+app.include_router(analytics_router)
+
+from job_routes import router as job_router  # noqa: E402
+app.include_router(job_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -582,7 +589,7 @@ async def preview_stream(
                     if "plate" in evt.get("stage", "").lower():
                         plates_seen += 1
                         _pc2 = {'stage': 'plate_complete', 'pct': pct,
-                                 'plate_index': plates_seen, 'total_plates': total_plates}
+                                'plate_index': plates_seen, 'total_plates': total_plates}
                         yield f"data: {json.dumps(_pc2)}\n\n"
 
                 composite_bytes, manifest = future.result()
@@ -614,10 +621,9 @@ async def preview_stream(
             rlog.set_error(f"{type(e).__name__}: {e}", exc_type=type(e).__name__)
             rlog.finish(500)
             yield f"data: {json.dumps({'stage': 'error', 'pct': 0, 'error': f'{type(e).__name__}: {e}'})}\n\n"
-        finally:
-            _cleanup_gpu()
 
-    return StreamingResponse(generate(), media_type="text/event-stream")
+    return StreamingResponse(generate(), media_type="text/event-stream",
+                             background=BackgroundTask(_cleanup_gpu))
 
 
 @app.post("/api/separate")
@@ -1081,10 +1087,9 @@ async def plates_stream_endpoint(
             rlog.set_error(f"{type(e).__name__}: {e}", exc_type=type(e).__name__)
             rlog.finish(500)
             yield f"data: {json.dumps({'type': 'error', 'error': f'{type(e).__name__}: {e}'})}\n\n"
-        finally:
-            _cleanup_gpu()
 
-    return StreamingResponse(generate(), media_type="text/event-stream")
+    return StreamingResponse(generate(), media_type="text/event-stream",
+                             background=BackgroundTask(_cleanup_gpu))
 
 
 @app.post("/api/auto-optimize")

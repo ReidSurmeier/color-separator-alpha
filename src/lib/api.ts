@@ -757,6 +757,49 @@ export async function fetchPreviewStream(
         }
       }
     }
+
+    // Flush residual buffer — the final SSE event may not end with \n\n
+    // if the connection closes immediately after the last byte
+    if (buffer.trim()) {
+      const remaining = buffer.split("\n\n");
+      for (const chunk of remaining) {
+        const trimmed = chunk.trim();
+        if (trimmed.startsWith("data: ")) {
+          const data = JSON.parse(trimmed.slice(6));
+          if (data.stage === "complete") {
+            let compositeUrl: string;
+            if (data.result_id) {
+              const imgRes = await fetch(`${BACKEND_URL}/api/result/${data.result_id as string}`);
+              if (!imgRes.ok)
+                throw new ApiError("Failed to fetch result image", "STREAM_ERROR", imgRes.status);
+              const blob = await imgRes.blob();
+              compositeUrl = URL.createObjectURL(blob);
+            } else {
+              const bytes = Uint8Array.from(atob(data.image as string), (c) => c.charCodeAt(0));
+              const blob = new Blob([bytes], { type: "image/png" });
+              compositeUrl = URL.createObjectURL(blob);
+            }
+            const manifest: Manifest = {
+              width: data.manifest.width,
+              height: data.manifest.height,
+              plates: (data.manifest.plates || []).map((p: Record<string, unknown>) => ({
+                name: p.name,
+                color: p.color,
+                coverage: (p.coverage_pct ?? p.coverage ?? 0) as number,
+                index: p.index as number | undefined,
+              })),
+              ai_analysis: (data.manifest.ai_analysis as Manifest["ai_analysis"]) ?? null,
+              upscaled: (data.manifest.upscaled as boolean) ?? false,
+              merge_suggestions: data.manifest.merge_suggestions as Manifest["merge_suggestions"],
+            };
+            if (result?.compositeUrl) URL.revokeObjectURL(result.compositeUrl);
+            result = { compositeUrl, manifest };
+          } else if (data.stage !== "heartbeat") {
+            onProgress(data.stage as string, data.pct as number);
+          }
+        }
+      }
+    }
   } finally {
     clearInterval(heartbeatInterval);
   }
