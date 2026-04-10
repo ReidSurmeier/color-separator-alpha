@@ -89,12 +89,16 @@ export default function PlatePreview({
             justifyContent: "center",
             width: "100%",
             height: "100%",
+            minHeight: "60vh",
             color: "#bbb",
-            fontSize: 12,
-            fontFamily: "monospace",
+            fontSize: 16,
+            fontFamily: "AUTHENTICSans-90, sans-serif",
+            flexDirection: "column",
+            gap: 8,
           }}
         >
-          no plates loaded
+          <div style={{ fontSize: 24, opacity: 0.4 }}>no plates loaded</div>
+          <div style={{ fontSize: 13, opacity: 0.3 }}>upload a ZIP or SVG files to begin</div>
         </div>
       );
     }
@@ -366,8 +370,8 @@ export default function PlatePreview({
                 background: "white",
                 border: "1px solid #e0e0e0",
                 aspectRatio: `${aspectRatio}`,
-                maxWidth: "min(600px, 70vw)",
-                maxHeight: "min(500px, 60vh)",
+                maxWidth: "min(800px, 60vw)",
+                maxHeight: "min(700px, 75vh)",
                 width: "100%",
                 overflow: "hidden",
               }}

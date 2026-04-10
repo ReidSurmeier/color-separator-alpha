@@ -10,9 +10,10 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 20px 20px 20px calc(250px + 4vw + 20px);
+  padding: 50px 20px 20px calc(250px + 4vw + 20px);
   overflow: hidden;
   min-width: 0;
+  height: 100vh;
 }
 
 /* ── Tool grid (2×3) ── */
