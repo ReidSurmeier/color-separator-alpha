@@ -265,6 +265,8 @@ export default function CncNavPanel({
         <button
           data-active={exportLayout === "sheet" ? "true" : "false"}
           onClick={() => onExportLayoutChange("sheet")}
+          disabled={exportFormat !== "svg"}
+          title={exportFormat !== "svg" ? "Sheet layout only available for SVG format" : undefined}
         >
           sheet
         </button>
@@ -341,6 +343,10 @@ export default function CncNavPanel({
           <div className="data-row">
             <span>kento added</span>
             <span>{stats.kento_marks_added}</span>
+          </div>
+          <div className="data-row">
+            <span>tool compensation</span>
+            <span>{stats.tool_compensation_applied}</span>
           </div>
           <div className="data-row">
             <span>nodes</span>

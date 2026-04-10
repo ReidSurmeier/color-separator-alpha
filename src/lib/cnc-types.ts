@@ -60,6 +60,7 @@ export interface ProcessingStats {
   support_islands_suggested: number;
   nodes_before: number;
   nodes_after: number;
+  tool_compensation_applied: number;
 }
 
 export interface ProjectState {

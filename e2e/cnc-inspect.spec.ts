@@ -247,11 +247,12 @@ test.describe("CNC Output Inspector", () => {
     console.log(`  1/4" end paths: ${paths2}`);
     console.log(`  60° V paths: ${paths3}`);
 
-    // This DOCUMENTS the current behavior — tool selection doesn't change output
-    if (plate1_tool1 === plate1_tool2) {
-      console.log("\n  ⚠ CONFIRMED: Tool selection does NOT affect SVG output");
-      console.log("  Tool diameter is metadata only — no path compensation applied");
-    }
+    // Tool compensation should produce different SVGs for different tools
+    // 1/8" end (r=1.5875mm) vs 1/4" end (r=3.175mm) — different offsets
+    expect(plate1_tool1).not.toBe(plate1_tool2);
+    // 1/8" end vs 60° V (r=0.2mm) — very different offsets
+    expect(plate1_tool1).not.toBe(plate1_tool3);
+    console.log("  ✓ Tool compensation verified: different tools → different SVGs");
   });
 
   test("kento on vs off — verify marks present/absent", async ({ page }) => {

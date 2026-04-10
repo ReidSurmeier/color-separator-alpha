@@ -6,8 +6,8 @@
     "kentoEnabled": true,
     "exportFormat": "svg",
     "plateCount": 3,
-    "processStats": "statsboundary rects removed3paths closed3kento added3nodes150→240",
-    "exportSizeKb": 17,
+    "processStats": "statsboundary rects removed3paths closed3kento added3tool compensation24nodes150→807",
+    "exportSizeKb": 22,
     "pass": true
   },
   {
@@ -17,8 +17,8 @@
     "kentoEnabled": true,
     "exportFormat": "svg",
     "plateCount": 5,
-    "processStats": "statsboundary rects removed5paths closed5kento added5nodes310→460",
-    "exportSizeKb": 35,
+    "processStats": "statsboundary rects removed5paths closed5kento added5tool compensation50nodes310→1675",
+    "exportSizeKb": 43,
     "pass": true
   },
   {
@@ -28,8 +28,8 @@
     "kentoEnabled": true,
     "exportFormat": "svg",
     "plateCount": 2,
-    "processStats": "statsboundary rects removed2paths closed2kento added2nodes88→148",
-    "exportSizeKb": 11,
+    "processStats": "statsboundary rects removed2paths closed2kento added2tool compensation14nodes88→472",
+    "exportSizeKb": 13,
     "pass": true
   },
   {
@@ -39,8 +39,8 @@
     "kentoEnabled": true,
     "exportFormat": "svg",
     "plateCount": 4,
-    "processStats": "statsboundary rects removed4paths closed4kento added4nodes224→344",
-    "exportSizeKb": 24,
+    "processStats": "statsboundary rects removed4paths closed4kento added4tool compensation36nodes224→1208",
+    "exportSizeKb": 30,
     "pass": true
   },
   {
@@ -50,8 +50,8 @@
     "kentoEnabled": true,
     "exportFormat": "svg",
     "plateCount": 3,
-    "processStats": "statsboundary rects removed3paths closed3kento added3nodes150→240",
-    "exportSizeKb": 17,
+    "processStats": "statsboundary rects removed3paths closed3kento added3tool compensation24nodes150→807",
+    "exportSizeKb": 22,
     "pass": true
   },
   {
@@ -61,8 +61,8 @@
     "kentoEnabled": true,
     "exportFormat": "svg",
     "plateCount": 3,
-    "processStats": "statsboundary rects removed3paths closed3kento added3nodes150→240",
-    "exportSizeKb": 17,
+    "processStats": "statsboundary rects removed3paths closed3kento added3tool compensation24nodes150→807",
+    "exportSizeKb": 22,
     "pass": true
   },
   {
@@ -72,8 +72,8 @@
     "kentoEnabled": true,
     "exportFormat": "svg",
     "plateCount": 3,
-    "processStats": "statsboundary rects removed3paths closed3kento added3nodes150→240",
-    "exportSizeKb": 17,
+    "processStats": "statsboundary rects removed3paths closed3kento added3tool compensation24nodes150→807",
+    "exportSizeKb": 22,
     "pass": true
   },
   {
@@ -83,8 +83,8 @@
     "kentoEnabled": true,
     "exportFormat": "svg",
     "plateCount": 3,
-    "processStats": "statsboundary rects removed3paths closed3kento added3nodes150→240",
-    "exportSizeKb": 17,
+    "processStats": "statsboundary rects removed3paths closed3kento added3tool compensation24nodes150→807",
+    "exportSizeKb": 22,
     "pass": true
   },
   {
@@ -94,8 +94,8 @@
     "kentoEnabled": true,
     "exportFormat": "svg",
     "plateCount": 3,
-    "processStats": "statsboundary rects removed3paths closed3kento added3nodes150→240",
-    "exportSizeKb": 17,
+    "processStats": "statsboundary rects removed3paths closed3kento added3tool compensation24nodes150→807",
+    "exportSizeKb": 22,
     "pass": true
   },
   {
@@ -105,8 +105,8 @@
     "kentoEnabled": false,
     "exportFormat": "svg",
     "plateCount": 3,
-    "processStats": "statsboundary rects removed3paths closed3kento added0nodes150→138",
-    "exportSizeKb": 10,
+    "processStats": "statsboundary rects removed3paths closed3kento added0tool compensation24nodes150→705",
+    "exportSizeKb": 15,
     "pass": true
   },
   {
@@ -116,8 +116,8 @@
     "kentoEnabled": true,
     "exportFormat": "dxf",
     "plateCount": 3,
-    "processStats": "statsboundary rects removed3paths closed3kento added3nodes150→240",
-    "exportSizeKb": 14,
+    "processStats": "statsboundary rects removed3paths closed3kento added3tool compensation24nodes150→807",
+    "exportSizeKb": 51,
     "pass": true
   },
   {
@@ -127,8 +127,8 @@
     "kentoEnabled": true,
     "exportFormat": "eps",
     "plateCount": 3,
-    "processStats": "statsboundary rects removed3paths closed3kento added3nodes150→240",
-    "exportSizeKb": 15,
+    "processStats": "statsboundary rects removed3paths closed3kento added3tool compensation24nodes150→807",
+    "exportSizeKb": 25,
     "pass": true
   },
   {
@@ -138,8 +138,8 @@
     "kentoEnabled": true,
     "exportFormat": "svg",
     "plateCount": 4,
-    "processStats": "statsboundary rects removed4paths closed4kento added4nodes224→344",
-    "exportSizeKb": 19,
+    "processStats": "statsboundary rects removed4paths closed4kento added4tool compensation36nodes224→1208",
+    "exportSizeKb": 27,
     "pass": true
   },
   {
@@ -149,8 +149,8 @@
     "kentoEnabled": true,
     "exportFormat": "svg",
     "plateCount": 8,
-    "processStats": "statsboundary rects removed8paths closed8kento added8nodes640→880",
-    "exportSizeKb": 64,
+    "processStats": "statsboundary rects removed8paths closed8kento added8tool compensation104nodes640→3472",
+    "exportSizeKb": 82,
     "pass": true
   },
   {
@@ -160,8 +160,8 @@
     "kentoEnabled": false,
     "exportFormat": "eps",
     "plateCount": 1,
-    "processStats": "statsboundary rects removed1paths closed1kento added0nodes38→34",
-    "exportSizeKb": 3,
+    "processStats": "statsboundary rects removed1paths closed1kento added0tool compensation6nodes38→169",
+    "exportSizeKb": 5,
     "pass": true
   }
 ]

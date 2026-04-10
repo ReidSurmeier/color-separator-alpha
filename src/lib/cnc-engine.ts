@@ -1,3 +1,4 @@
+import { inflatePaths, JoinType, EndType } from "clipper2-ts";
 import type { CncPlate, KentoConfig, SupportIsland } from "./cnc-types";
 
 // ---------------------------------------------------------------------------
@@ -402,6 +403,240 @@ export function closeOpenPaths(paths: string[]): { closed: string[]; pathsClosed
     return trimmed + " Z";
   });
   return { closed, pathsClosed };
+}
+
+// ---------------------------------------------------------------------------
+// compensateToolPath
+// ---------------------------------------------------------------------------
+
+/**
+ * Offset paths inward by tool radius using clipper2-ts.
+ * This compensates for the physical width of the CNC cutting tool,
+ * ensuring the carved area matches the original artwork boundary.
+ *
+ * For endmills: offset = -radius (paths shrink by half the tool diameter)
+ * For V-bits: offset = -radius at the surface (tip compensation)
+ */
+export function compensateToolPath(
+  paths: string[],
+  toolRadiusMm: number,
+): { compensated: string[]; compensatedCount: number } {
+  if (toolRadiusMm === 0 || paths.length === 0) {
+    return { compensated: paths, compensatedCount: 0 };
+  }
+
+  // Scale factor: work in integer space (clipper uses bigints)
+  const SCALE = 1000;
+  const delta = -toolRadiusMm * SCALE;
+
+  let compensatedCount = 0;
+  const compensated: string[] = [];
+
+  for (const d of paths) {
+    const subpathPolygons = parseSvgPathToPolygons(d);
+
+    if (subpathPolygons.length === 0) {
+      compensated.push(d);
+      continue;
+    }
+
+    // Convert each subpath polygon to clipper Path64
+    const clipperPaths = subpathPolygons.map((pts) =>
+      pts.map(([x, y]) => ({
+        x: Math.round(x * SCALE),
+        y: Math.round(y * SCALE),
+      }))
+    );
+
+    const inflated = inflatePaths(clipperPaths, delta, JoinType.Round, EndType.Polygon);
+
+    if (!inflated || inflated.length === 0) {
+      // Path disappeared (too small for tool) — skip it
+      compensatedCount++;
+      continue;
+    }
+
+    // Convert result paths back to SVG d strings
+    for (const path of inflated) {
+      if (path.length < 2) continue;
+      const parts: string[] = [];
+      for (let i = 0; i < path.length; i++) {
+        const x = (Number(path[i].x) / SCALE).toFixed(3);
+        const y = (Number(path[i].y) / SCALE).toFixed(3);
+        parts.push(i === 0 ? `M ${x} ${y}` : `L ${x} ${y}`);
+      }
+      parts.push("Z");
+      compensated.push(parts.join(" "));
+    }
+
+    compensatedCount++;
+  }
+
+  return { compensated, compensatedCount };
+}
+
+/**
+ * Parse an SVG path `d` string into arrays of polygon points.
+ * Each subpath (separated by M commands) becomes one polygon.
+ * Cubic bezier curves are sampled at 8 points for CNC approximation.
+ */
+function parseSvgPathToPolygons(d: string): Array<Array<[number, number]>> {
+  const tokenRe = /([MmLlHhVvCcSsQqTtAaZz])|(-?[0-9]*\.?[0-9]+(?:[eE][+-]?[0-9]+)?)/g;
+
+  const tokens: Array<{ type: "cmd"; value: string } | { type: "num"; value: number }> = [];
+  let tok: RegExpExecArray | null;
+  while ((tok = tokenRe.exec(d)) !== null) {
+    if (tok[1]) tokens.push({ type: "cmd", value: tok[1] });
+    else if (tok[2] !== undefined) tokens.push({ type: "num", value: parseFloat(tok[2]) });
+  }
+
+  const polygons: Array<Array<[number, number]>> = [];
+  let current: Array<[number, number]> = [];
+  let cx = 0;
+  let cy = 0;
+  let startX = 0;
+  let startY = 0;
+
+  let i = 0;
+  const nums: number[] = [];
+  let cmd = "";
+
+  const flushCmd = () => {
+    if (!cmd) return;
+    const c = cmd;
+    const abs = c === c.toUpperCase();
+
+    if (c === "M" || c === "m") {
+      // Start new subpath
+      if (current.length > 0) {
+        polygons.push(current);
+        current = [];
+      }
+      for (let k = 0; k + 1 < nums.length; k += 2) {
+        const x = abs ? nums[k] : cx + nums[k];
+        const y = abs ? nums[k + 1] : cy + nums[k + 1];
+        if (k === 0) { startX = x; startY = y; }
+        cx = x; cy = y;
+        current.push([cx, cy]);
+      }
+    } else if (c === "L" || c === "l") {
+      for (let k = 0; k + 1 < nums.length; k += 2) {
+        cx = abs ? nums[k] : cx + nums[k];
+        cy = abs ? nums[k + 1] : cy + nums[k + 1];
+        current.push([cx, cy]);
+      }
+    } else if (c === "H" || c === "h") {
+      for (let k = 0; k < nums.length; k++) {
+        cx = abs ? nums[k] : cx + nums[k];
+        current.push([cx, cy]);
+      }
+    } else if (c === "V" || c === "v") {
+      for (let k = 0; k < nums.length; k++) {
+        cy = abs ? nums[k] : cy + nums[k];
+        current.push([cx, cy]);
+      }
+    } else if (c === "C" || c === "c") {
+      // Cubic bezier — sample 8 points along each curve
+      for (let k = 0; k + 5 < nums.length; k += 6) {
+        const x0 = cx;
+        const y0 = cy;
+        const x1 = abs ? nums[k] : cx + nums[k];
+        const y1 = abs ? nums[k + 1] : cy + nums[k + 1];
+        const x2 = abs ? nums[k + 2] : cx + nums[k + 2];
+        const y2 = abs ? nums[k + 3] : cy + nums[k + 3];
+        const x3 = abs ? nums[k + 4] : cx + nums[k + 4];
+        const y3 = abs ? nums[k + 5] : cy + nums[k + 5];
+        const samples = 8;
+        for (let s = 1; s <= samples; s++) {
+          const t = s / samples;
+          const mt = 1 - t;
+          const bx = mt * mt * mt * x0 + 3 * mt * mt * t * x1 + 3 * mt * t * t * x2 + t * t * t * x3;
+          const by = mt * mt * mt * y0 + 3 * mt * mt * t * y1 + 3 * mt * t * t * y2 + t * t * t * y3;
+          current.push([bx, by]);
+        }
+        cx = x3; cy = y3;
+      }
+    } else if (c === "S" || c === "s") {
+      // Smooth cubic bezier — treat as line segments to control point + endpoint
+      for (let k = 0; k + 3 < nums.length; k += 4) {
+        const x2 = abs ? nums[k] : cx + nums[k];
+        const y2 = abs ? nums[k + 1] : cy + nums[k + 1];
+        const x3 = abs ? nums[k + 2] : cx + nums[k + 2];
+        const y3 = abs ? nums[k + 3] : cy + nums[k + 3];
+        // Sample with reflected control point (approximate)
+        const x0 = cx; const y0 = cy;
+        const x1 = x0; const y1 = y0; // simplified: use current point
+        const samples = 8;
+        for (let s = 1; s <= samples; s++) {
+          const t = s / samples;
+          const mt = 1 - t;
+          const bx = mt * mt * mt * x0 + 3 * mt * mt * t * x1 + 3 * mt * t * t * x2 + t * t * t * x3;
+          const by = mt * mt * mt * y0 + 3 * mt * mt * t * y1 + 3 * mt * t * t * y2 + t * t * t * y3;
+          current.push([bx, by]);
+        }
+        cx = x3; cy = y3;
+      }
+    } else if (c === "Q" || c === "q") {
+      // Quadratic bezier
+      for (let k = 0; k + 3 < nums.length; k += 4) {
+        const x0 = cx; const y0 = cy;
+        const x1 = abs ? nums[k] : cx + nums[k];
+        const y1 = abs ? nums[k + 1] : cy + nums[k + 1];
+        const x2 = abs ? nums[k + 2] : cx + nums[k + 2];
+        const y2 = abs ? nums[k + 3] : cy + nums[k + 3];
+        const samples = 8;
+        for (let s = 1; s <= samples; s++) {
+          const t = s / samples;
+          const mt = 1 - t;
+          const bx = mt * mt * x0 + 2 * mt * t * x1 + t * t * x2;
+          const by = mt * mt * y0 + 2 * mt * t * y1 + t * t * y2;
+          current.push([bx, by]);
+        }
+        cx = x2; cy = y2;
+      }
+    } else if (c === "T" || c === "t") {
+      // Smooth quadratic — approximate as line
+      for (let k = 0; k + 1 < nums.length; k += 2) {
+        cx = abs ? nums[k] : cx + nums[k];
+        cy = abs ? nums[k + 1] : cy + nums[k + 1];
+        current.push([cx, cy]);
+      }
+    } else if (c === "Z" || c === "z") {
+      // Close subpath
+      cx = startX; cy = startY;
+      if (current.length > 0) {
+        polygons.push(current);
+        current = [];
+      }
+    }
+    // A (arc) — fall through, emit endpoint only
+    else if (c === "A" || c === "a") {
+      for (let k = 0; k + 6 < nums.length; k += 7) {
+        cx = abs ? nums[k + 5] : cx + nums[k + 5];
+        cy = abs ? nums[k + 6] : cy + nums[k + 6];
+        current.push([cx, cy]);
+      }
+    }
+  };
+
+  // Walk tokens
+  for (; i < tokens.length; i++) {
+    const t = tokens[i];
+    if (t.type === "cmd") {
+      flushCmd();
+      cmd = t.value;
+      nums.length = 0;
+    } else {
+      nums.push(t.value);
+    }
+  }
+  flushCmd();
+
+  if (current.length > 0) {
+    polygons.push(current);
+  }
+
+  return polygons;
 }
 
 // ---------------------------------------------------------------------------

@@ -14,6 +14,7 @@ import {
   convertUnits,
   fixEvenOddPaths,
   closeOpenPaths,
+  compensateToolPath,
   detectUnsupportedAreas,
 } from "@/lib/cnc-engine";
 import { exportProjectZip } from "@/lib/cnc-export";
@@ -401,6 +402,7 @@ export function useCncProcessor() {
       let totalEvenoddFixed = 0;
       let totalPathsClosed = 0;
       let totalSupportIslands = 0;
+      let totalCompensatedPaths = 0;
 
       const processed = plates.map((plate) => {
         const { paths, width, height } = parseSvg(plate.svgRaw);
@@ -420,8 +422,12 @@ export function useCncProcessor() {
         const { closed, pathsClosed } = closeOpenPaths(evenoddFixed);
         totalPathsClosed += pathsClosed;
 
+        // 4. Tool compensation (offset inward by tool radius)
+        const { compensated, compensatedCount } = compensateToolPath(closed, selectedTool.radius_mm);
+        totalCompensatedPaths += compensatedCount;
+
         // Rebuild SVG with cleaned paths
-        const pathElements = closed
+        const pathElements = compensated
           .map((d) => `<path d="${d}" fill="inherit" stroke="inherit"/>`)
           .join("\n");
 
@@ -450,7 +456,7 @@ export function useCncProcessor() {
 
         // 6. Detect support islands
         const islands = detectUnsupportedAreas(
-          closed,
+          compensated,
           printSize.width_mm,
           printSize.height_mm
         );
@@ -480,6 +486,7 @@ export function useCncProcessor() {
         support_islands_suggested: totalSupportIslands,
         nodes_before: totalNodesBefore,
         nodes_after: totalNodesAfter,
+        tool_compensation_applied: totalCompensatedPaths,
       });
       trackEvent("cnc_process_complete", {
         plateCount: plates.length,
@@ -488,6 +495,7 @@ export function useCncProcessor() {
         nodesBefore: totalNodesBefore,
         nodesAfter: totalNodesAfter,
         kentoMarks: totalKentoMarks,
+        compensatedPaths: totalCompensatedPaths,
         compressionRatio: totalNodesBefore > 0 ? +(totalNodesAfter / totalNodesBefore).toFixed(3) : null,
       });
     } catch (err) {
