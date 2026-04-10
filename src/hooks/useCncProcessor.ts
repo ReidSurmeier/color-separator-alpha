@@ -195,7 +195,7 @@ export function useCncProcessor() {
 
         // Try to load manifest.json
         let manifest: {
-          plates?: Array<{ name: string; color: string; printOrder?: number; file?: string }>;
+          plates?: Array<{ name: string; color: string | number[]; printOrder?: number; file?: string; index?: number }>;
           printWidth_mm?: number;
           printHeight_mm?: number;
         } | null = null;
@@ -250,14 +250,20 @@ export function useCncProcessor() {
         const loaded: CncPlate[] = svgEntries.map((entry, i) => {
           const baseName = entry.name.replace(/^svg\//, "").replace(/\.svg$/i, "");
 
-          // Match against manifest entry
+          // Match against manifest entry — baseName is "plate1_513837", manifest name is "plate1"
           const manifestEntry = manifest?.plates?.find(
-            (p) => p.file === entry.name || p.name === baseName
+            (p) => p.file === entry.name || p.name === baseName || baseName.startsWith(p.name ?? "")
           );
 
-          const color: [number, number, number] = manifestEntry?.color
-            ? hexToRgb(manifestEntry.color)
-            : randomColor();
+          // Color can be hex string OR RGB array from manifest
+          let color: [number, number, number] = randomColor();
+          if (manifestEntry?.color) {
+            if (Array.isArray(manifestEntry.color)) {
+              color = manifestEntry.color as [number, number, number];
+            } else if (typeof manifestEntry.color === "string") {
+              color = hexToRgb(manifestEntry.color);
+            }
+          }
 
           const name = manifestEntry?.name ?? baseName;
           const printOrder = manifestEntry?.printOrder ?? i + 1;
