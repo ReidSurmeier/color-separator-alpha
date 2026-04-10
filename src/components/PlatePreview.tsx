@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { generateKentoMarks, convertUnits } from "@/lib/cnc-engine";
 import type { CncPlate, KentoConfig, PrintSize } from "@/lib/cnc-types";
 
@@ -57,7 +58,10 @@ export default function PlatePreview({
 }: PlatePreviewProps) {
   const { width_mm, height_mm, margin_mm } = printSize;
   const aspectRatio = width_mm / height_mm;
-  const kentoPath = generateKentoMarks(width_mm, height_mm, kentoConfig);
+  const kentoPath = useMemo(
+    () => generateKentoMarks(width_mm, height_mm, kentoConfig),
+    [width_mm, height_mm, kentoConfig]
+  );
 
   const widthLabel = formatDim(width_mm, unit);
   const heightLabel = formatDim(height_mm, unit);

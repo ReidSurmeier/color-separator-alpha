@@ -42,7 +42,7 @@ _ALLOWED_EVENTS = {
     "cnc_export_start", "cnc_export_complete", "cnc_tool_change",
     "cnc_kento_toggle", "cnc_unit_toggle", "cnc_print_size_change",
     "cnc_plate_select", "cnc_view_change", "cnc_format_change",
-    "cnc_layout_change", "cnc_reset", "cnc_session_load",
+    "cnc_layout_change", "cnc_reset", "cnc_session_load", "cnc_process_error",
 }
 
 

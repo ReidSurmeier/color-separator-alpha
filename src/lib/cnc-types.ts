@@ -29,6 +29,7 @@ export interface CncPlate {
   printOrder: number;
   material: "cherry" | "shina" | "mdf" | "other";
   cutStatus: "pending" | "cutting" | "done";
+  supportIslands?: SupportIsland[];
 }
 
 export interface KentoConfig {

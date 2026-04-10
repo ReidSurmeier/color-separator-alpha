@@ -12,6 +12,9 @@ import {
   generateKentoMarks,
   insertKentoIntoSvg,
   convertUnits,
+  fixEvenOddPaths,
+  closeOpenPaths,
+  detectUnsupportedAreas,
 } from "@/lib/cnc-engine";
 import { exportProjectZip } from "@/lib/cnc-export";
 import { trackEvent } from "@/lib/api";
@@ -93,6 +96,7 @@ export function useCncProcessor() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [hasProcessed, setHasProcessed] = useState(false);
   const [stats, setStats] = useState<ProcessingStats | null>(null);
+  const [processingError, setProcessingError] = useState<string | null>(null);
 
   // Export
   const [exportFormat, setExportFormat] = useState<"svg" | "dxf" | "eps">("svg");
@@ -111,8 +115,6 @@ export function useCncProcessor() {
   useEffect(() => {
     const raw = sessionStorage.getItem("cnc-plates");
     if (!raw) return;
-
-    sessionStorage.removeItem("cnc-plates");
 
     try {
       const parsed = JSON.parse(raw) as {
@@ -139,6 +141,10 @@ export function useCncProcessor() {
 
       const sorted = sortPlatesByLuminance(loaded).map((p, i) => ({ ...p, printOrder: i + 1 }));
       setPlates(sorted);
+
+      // Clear AFTER successful parse
+      sessionStorage.removeItem("cnc-plates");
+
       trackEvent("cnc_session_load", {
         plateCount: sorted.length,
         hasManifest: !!(parsed.manifest?.printWidth_mm),
@@ -157,7 +163,7 @@ export function useCncProcessor() {
 
       setFileName("Loaded from session");
     } catch {
-      // ignore malformed session data
+      // Don't clear on error — user can retry
     }
   }, []);
 
@@ -377,6 +383,7 @@ export function useCncProcessor() {
   const handleProcess = useCallback(async () => {
     if (plates.length === 0) return;
     setIsProcessing(true);
+    setProcessingError(null);
     const processStart = performance.now();
     trackEvent("cnc_process_start", {
       plateCount: plates.length,
@@ -391,6 +398,9 @@ export function useCncProcessor() {
       let totalNodesBefore = 0;
       let totalNodesAfter = 0;
       let totalKentoMarks = 0;
+      let totalEvenoddFixed = 0;
+      let totalPathsClosed = 0;
+      let totalSupportIslands = 0;
 
       const processed = plates.map((plate) => {
         const { paths, width, height } = parseSvg(plate.svgRaw);
@@ -402,8 +412,16 @@ export function useCncProcessor() {
         const { cleaned, removed } = stripCanvasBoundary(paths, width, height);
         totalBoundariesRemoved += removed;
 
+        // 2. Fix evenodd paths (VCarve doesn't handle evenodd fill-rule)
+        const { fixed: evenoddFixed, evenoddFixed: evenoddCount } = fixEvenOddPaths(cleaned);
+        totalEvenoddFixed += evenoddCount;
+
+        // 3. Close open paths (VCarve needs closed vectors)
+        const { closed, pathsClosed } = closeOpenPaths(evenoddFixed);
+        totalPathsClosed += pathsClosed;
+
         // Rebuild SVG with cleaned paths
-        const pathElements = cleaned
+        const pathElements = closed
           .map((d) => `<path d="${d}" fill="inherit" stroke="inherit"/>`)
           .join("\n");
 
@@ -412,14 +430,14 @@ export function useCncProcessor() {
         const svgOpen = svgOpenMatch ? svgOpenMatch[0] : `<svg xmlns="http://www.w3.org/2000/svg">`;
         let rebuiltSvg = `${svgOpen}\n${pathElements}\n</svg>`;
 
-        // 2. Set physical dimensions
+        // 4. Set physical dimensions
         rebuiltSvg = setPhysicalDimensions(
           rebuiltSvg,
           printSize.width_mm,
           printSize.height_mm
         );
 
-        // 3. Insert kento marks
+        // 5. Insert kento marks
         if (kentoConfig.enabled) {
           const kentoMark = generateKentoMarks(
             printSize.width_mm,
@@ -429,6 +447,14 @@ export function useCncProcessor() {
           rebuiltSvg = insertKentoIntoSvg(rebuiltSvg, kentoMark);
           totalKentoMarks++;
         }
+
+        // 6. Detect support islands
+        const islands = detectUnsupportedAreas(
+          closed,
+          printSize.width_mm,
+          printSize.height_mm
+        );
+        totalSupportIslands += islands.length;
 
         const nodesAfter = countNodes(rebuiltSvg);
         totalNodesAfter += nodesAfter;
@@ -441,6 +467,7 @@ export function useCncProcessor() {
             width: printSize.width_mm,
             height: printSize.height_mm,
           },
+          supportIslands: islands,
         };
       });
 
@@ -448,9 +475,9 @@ export function useCncProcessor() {
       setHasProcessed(true);
       setStats({
         boundary_rects_removed: totalBoundariesRemoved,
-        paths_closed: 0,
+        paths_closed: totalPathsClosed,
         kento_marks_added: totalKentoMarks,
-        support_islands_suggested: 0,
+        support_islands_suggested: totalSupportIslands,
         nodes_before: totalNodesBefore,
         nodes_after: totalNodesAfter,
       });
@@ -463,10 +490,14 @@ export function useCncProcessor() {
         kentoMarks: totalKentoMarks,
         compressionRatio: totalNodesBefore > 0 ? +(totalNodesAfter / totalNodesBefore).toFixed(3) : null,
       });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Processing failed";
+      setProcessingError(msg);
+      trackEvent("cnc_process_error", { error: msg });
     } finally {
       setIsProcessing(false);
     }
-  }, [plates, printSize, kentoConfig]);
+  }, [plates, printSize, kentoConfig, selectedTool]);
 
   // ---------------------------------------------------------------------------
   // Reset
@@ -496,13 +527,22 @@ export function useCncProcessor() {
 
   const handleExportFormatChange = useCallback((fmt: "svg" | "dxf" | "eps") => {
     setExportFormat(fmt);
+    if (fmt !== "svg" && exportLayout === "sheet") {
+      setExportLayout("individual");
+    }
     trackEvent("cnc_format_change", { format: fmt });
-  }, []);
+  }, [exportLayout]);
 
   const handleExportLayoutChange = useCallback((layout: "individual" | "sheet") => {
+    // Sheet layout only works for SVG
+    if (layout === "sheet" && exportFormat !== "svg") {
+      setExportLayout("individual");
+      trackEvent("cnc_layout_change", { layout: "individual", reason: "sheet_only_svg" });
+      return;
+    }
     setExportLayout(layout);
     trackEvent("cnc_layout_change", { layout });
-  }, []);
+  }, [exportFormat]);
 
   const handleExport = useCallback(async () => {
     if (plates.length === 0) return;
@@ -592,6 +632,7 @@ export function useCncProcessor() {
     // Processing
     isProcessing,
     hasProcessed,
+    processingError,
     handleProcess,
     handleReset,
 
