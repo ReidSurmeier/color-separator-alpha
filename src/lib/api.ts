@@ -646,8 +646,9 @@ export async function fetchPlatesSvg(
 
     const pollData = await pollRes.json();
 
-    // Job done — result is the SVG array
+    // Job done — result is either raw array or {status: "done", plates: [...]}
     if (Array.isArray(pollData)) return pollData;
+    if (pollData.status === "done" && Array.isArray(pollData.plates)) return pollData.plates;
     if (pollData.status === "error") throw new ApiError(pollData.error || "SVG generation failed", "UNKNOWN", 500);
     // Still running — continue polling
   }
