@@ -1092,6 +1092,153 @@ async def plates_stream_endpoint(
                              background=BackgroundTask(_cleanup_gpu))
 
 
+@app.post("/api/plates-svg")
+async def plates_svg_endpoint(
+    image: UploadFile = File(...),
+    plates: int = Form(3),
+    dust: int = Form(20),
+    version: str = Form("v20"),
+    upscale: bool = Form(True),
+    upscale_scale: int = Form(2),
+    chroma_boost: float = Form(1.3),
+    shadow_threshold: int = Form(8),
+    highlight_threshold: int = Form(95),
+    median_size: int = Form(3),
+    locked_colors: str | None = Form(None),
+    use_edges: bool = Form(True),
+    edge_sigma: float = Form(1.5),
+    # Accept but ignore these params (needed for buildFormData compatibility)
+    n_segments: int = Form(3000),
+    compactness: int = Form(15),
+    crf_spatial: int = Form(3),
+    crf_color: int = Form(13),
+    crf_compat: int = Form(10),
+    sigma_s: float = Form(100),
+    sigma_r: float = Form(0.5),
+    meanshift_sp: int = Form(15),
+    meanshift_sr: int = Form(30),
+    detail_strength: float = Form(0.5),
+):
+    """Generate high-res SVGs + PNGs for all plates. Returns async job_id for polling."""
+    from job_queue import create_job, update_job, JobStatus
+    import hashlib as _hl
+
+    image_bytes = await image.read()
+    err = await validate_upload(image_bytes)
+    if err is not None:
+        return err
+    image_bytes = strip_exif(image_bytes)
+
+    locked = parse_locked_colors(locked_colors)
+    plates = _clamp(int(plates), PLATES_MIN, SAM_PLATES_MAX)
+    dust = _clamp(int(dust), DUST_MIN, DUST_MAX)
+    upscale_scale = upscale_scale if upscale_scale in (2, 4) else 2
+    if not UPSCALE_ENABLED:
+        upscale = False
+
+    raw_hash = _hl.sha256(image_bytes).hexdigest()
+    cache_key = v20._make_cache_key(raw_hash, plates, dust)
+
+    # Fast path: cached SVG
+    if cache_key in v20._svg_cache:
+        rlog = RequestLog("/api/plates-svg", request_id=raw_hash[:16])
+        rlog.set_cache_hit(hit=True, svg=True)
+        rlog.finish(status=200)
+        return Response(content=v20._svg_cache[cache_key], media_type="application/json")
+
+    # Slow path: enqueue job
+    job_id = create_job()
+
+    async def _run_job():
+        rlog = RequestLog("/api/plates-svg", request_id=raw_hash[:16])
+        try:
+            _probe = Image.open(io.BytesIO(image_bytes))
+            rlog.set_input(w=_probe.size[0], h=_probe.size[1],
+                           kb=len(image_bytes) / 1024, fmt=_probe.format or "PNG")
+        except Exception:
+            pass
+        rlog.set_params(plates=plates, dust=dust, version="v20",
+                        upscale=upscale, upscale_scale=upscale_scale)
+
+        loop = asyncio.get_event_loop()
+        try:
+            update_job(job_id, JobStatus.RUNNING, progress="separation")
+
+            # Run full v20 separation if not cached
+            if cache_key not in v20._separation_cache:
+                kwargs = dict(
+                    image_bytes=image_bytes, plates=plates, dust=dust,
+                    use_edges=use_edges, edge_sigma=edge_sigma,
+                    locked_colors=locked, shadow_threshold=shadow_threshold,
+                    highlight_threshold=highlight_threshold,
+                    median_size=median_size, chroma_boost=chroma_boost,
+                    upscale=upscale,
+                )
+                async with _heavy_semaphore:
+                    with rlog.stage("separation"):
+                        composite_bytes, manifest = await asyncio.wait_for(
+                            loop.run_in_executor(
+                                None, lambda: v20.build_preview_response(**kwargs)
+                            ),
+                            timeout=SAM_TIMEOUT_SECONDS,
+                        )
+            else:
+                rlog.set_cache_hit(hit=True)
+
+            cached = v20._separation_cache.get(cache_key)
+            if cached is None:
+                raise RuntimeError("Separation cache miss after processing")
+
+            sep_manifest = cached["manifest"]
+            h, w = sep_manifest["height"], sep_manifest["width"]
+
+            update_job(job_id, JobStatus.RUNNING, progress="potrace")
+
+            def _build_svgs():
+                import base64 as b64mod
+                svgs = []
+                for plate_info in sep_manifest["plates"]:
+                    name = plate_info["name"]
+                    plate_data = cached["plates"].get(name, {})
+                    mask = plate_data.get("mask")
+                    svg = v20.mask_to_svg_string(mask, w, h) if mask is not None else ""
+                    png_b64 = ""
+                    plate_image = plate_data.get("image")
+                    if plate_image is not None:
+                        buf = io.BytesIO()
+                        plate_image.save(buf, format="PNG", compress_level=1)
+                        png_b64 = b64mod.b64encode(buf.getvalue()).decode("ascii")
+                    svgs.append({
+                        "name": name,
+                        "color": plate_info["color"],
+                        "svg": svg,
+                        "png_b64": png_b64,
+                    })
+                return svgs
+
+            with rlog.stage("potrace"):
+                svgs = await loop.run_in_executor(None, _build_svgs)
+
+            response_json = json.dumps(svgs)
+            v20._svg_cache[cache_key] = response_json
+            while len(v20._svg_cache) > v20._SVG_CACHE_MAX_ENTRIES:
+                oldest = next(iter(v20._svg_cache))
+                del v20._svg_cache[oldest]
+
+            rlog.finish(status=200)
+            update_job(job_id, JobStatus.DONE, result=response_json.encode())
+
+        except Exception as e:
+            rlog.set_error(f"{type(e).__name__}: {e}", type(e).__name__)
+            rlog.finish(status=500)
+            update_job(job_id, JobStatus.ERROR, error=f"{type(e).__name__}: {e}")
+        finally:
+            _cleanup_gpu()
+
+    asyncio.create_task(_run_job())
+    return JSONResponse({"job_id": job_id, "status": "pending"})
+
+
 @app.post("/api/auto-optimize")
 async def auto_optimize_endpoint(
     image: UploadFile = File(...),
