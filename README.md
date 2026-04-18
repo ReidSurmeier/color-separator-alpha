@@ -13,7 +13,7 @@
   <strong>AI-powered color separation for woodblock printing.</strong>
 </p>
 
-Color.separator splits photographs into flat color plates for relief printing. Each plate is a binary mask — ink or paper — for woodblock, linocut, or screenprint layers. The tool uses SAM2.1 for object-aware segmentation, K-means++ for perceptual color clustering in CIELAB space, and potrace for Inkscape-quality cubic bezier SVG output.
+Color.separator splits photographs into flat color plates for relief printing. Each plate is a binary mask ink or paper for woodblock, linocut, or screenprint layers. The tool uses SAM2.1 for object aware segmentation, K means++ for perceptual color clustering in CIELAB space, and potrace for cubic bezier SVG output.
 
 * Live: https://color.reidsurmeier.wtf
 * Algorithm: SAM2.1 + K-means++ + Canny + RealESRGAN + potrace
